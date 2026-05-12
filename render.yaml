@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: lvjiaoshou
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_BASE_URL
+        value: https://lvjiaoshou.onrender.com
+      - key: OPENAI_IMAGE_MODEL
+        value: gpt-image-2
+      - key: REAL_OPENAI_IMAGES
+        value: "0"
+      - key: OPENAI_ANALYSIS_MODEL
+        value: gpt-5.2

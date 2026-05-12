@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>lamps studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;800;900&family=Noto+Sans+SC:wght@400;500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css?v=20260511-green-buttons-v1" />
+  </head>
+  <body>
+    <template id="unicornTemplate">
+      <svg class="unicorn-logo" viewBox="0 0 64 64" aria-hidden="true">
+        <path class="u-line" d="M14 45c5-13 14-21 27-23 5-1 9 2 10 7 1 6-2 11-8 14" />
+        <path class="u-line" d="M22 43c7 4 17 3 25-2" />
+        <path class="u-line" d="M37 22l6-15 5 15" />
+        <path class="u-line" d="M24 32c5-6 11-8 18-7" />
+        <path class="u-line" d="M33 31c0 0 3 3 8 3" />
+        <path class="u-line" d="M17 48c3 3 8 5 14 5" />
+        <circle class="u-fill" cx="43" cy="30" r="2" />
+      </svg>
+    </template>
+
+    <main id="authView" class="auth-view">
+      <section class="auth-card-shell">
+        <div class="auth-logo">
+          <svg class="unicorn-logo" viewBox="0 0 64 64" aria-hidden="true">
+            <path class="u-line" d="M14 45c5-13 14-21 27-23 5-1 9 2 10 7 1 6-2 11-8 14" />
+            <path class="u-line" d="M22 43c7 4 17 3 25-2" />
+            <path class="u-line" d="M37 22l6-15 5 15" />
+            <path class="u-line" d="M24 32c5-6 11-8 18-7" />
+            <path class="u-line" d="M33 31c0 0 3 3 8 3" />
+            <path class="u-line" d="M17 48c3 3 8 5 14 5" />
+            <circle class="u-fill" cx="43" cy="30" r="2" />
+          </svg>
+        </div>
+        <h1>登录 lamps studio</h1>
+        <p id="authSubtitle">使用手机号或邮箱登录，新用户可通过验证码注册</p>
+
+        <div class="auth-tabs" role="tablist">
+          <button id="loginTab" class="is-active" type="button">登录</button>
+          <button id="registerTab" type="button">注册</button>
+        </div>
+
+        <div id="registerMethods" class="auth-methods" hidden>
+          <button class="is-active" data-auth-channel="phone" type="button">手机号注册</button>
+          <button data-auth-channel="email" type="button">邮箱注册</button>
+        </div>
+
+        <label>
+          <span id="authAccountLabel">手机号 / 邮箱</span>
+          <input id="authPhone" placeholder="请输入手机号或邮箱" autocomplete="username" />
+        </label>
+        <label id="authCodeRow" hidden>
+          验证码
+          <div class="code-row">
+            <input id="authCode" inputmode="numeric" maxlength="6" placeholder="6 位验证码" autocomplete="one-time-code" />
+            <button id="sendCodeButton" type="button">发送验证码</button>
+          </div>
+        </label>
+        <label>
+          密码
+          <input id="authPassword" type="password" placeholder="至少 6 位" autocomplete="current-password" />
+        </label>
+
+        <button id="forgotPassword" class="forgot-button" type="button">忘记密码?</button>
+        <button id="authSubmit" class="black-button" type="button">登录</button>
+        <p class="terms">登录即表示您同意我们的服务条款和隐私政策</p>
+      </section>
+      <button class="back-link" type="button">← 返回</button>
+      <button class="help-float support-button" type="button" aria-label="联系客服">ʚɞ</button>
+    </main>
+
+    <main id="appView" class="app-view" hidden>
+      <header class="app-header">
+        <button class="mini-brand" type="button" aria-label="lamps studio">
+          <span class="brand-logo-wrap" aria-hidden="true">
+            <svg class="unicorn-logo mini" viewBox="0 0 64 64">
+              <path class="u-line" d="M14 45c5-13 14-21 27-23 5-1 9 2 10 7 1 6-2 11-8 14" />
+              <path class="u-line" d="M22 43c7 4 17 3 25-2" />
+              <path class="u-line" d="M37 22l6-15 5 15" />
+              <path class="u-line" d="M24 32c5-6 11-8 18-7" />
+              <path class="u-line" d="M33 31c0 0 3 3 8 3" />
+              <path class="u-line" d="M17 48c3 3 8 5 14 5" />
+              <circle class="u-fill" cx="43" cy="30" r="2" />
+            </svg>
+            <span class="brand-orbit"></span>
+          </span>
+          <span class="brand-text">lamps studio</span>
+        </button>
+        <nav class="app-nav" aria-label="作图工具导航">
+          <button class="is-active" data-tool="product" type="button">
+            <svg class="nav-svg nav-svg-lamp" viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M9 2.1v2.8" />
+              <path d="M5.8 4.9h6.4l1.5 4.6H4.3l1.5-4.6Z" />
+              <path d="M6.8 9.5 5.7 13" />
+              <path d="M11.2 9.5 12.3 13" />
+              <path d="M5 13h8" />
+              <path d="M7.2 15h3.6" />
+            </svg>
+            <span>灯具商品图</span>
+          </button>
+          <button data-tool="style" type="button">
+            <svg class="nav-svg nav-svg-style" viewBox="0 0 18 18" aria-hidden="true">
+              <rect x="2" y="2.4" width="14" height="13.2" rx="4" />
+              <path d="M5.2 11.7c2.9-.4 4.3-2.1 4.9-5.1 1.9 1.1 3 2.9 2.6 4.7-.4 1.9-2.2 3.2-4.5 3-1.1-.1-2.1-.5-3-1.2Z" />
+              <circle cx="5.8" cy="6.2" r="1.2" />
+              <circle cx="8.9" cy="4.7" r="1" />
+              <circle cx="12.2" cy="6.3" r="1.1" />
+            </svg>
+            <span>风格复刻</span>
+          </button>
+          <button data-tool="templates" type="button">
+            <svg class="nav-svg nav-svg-tangram" viewBox="0 0 18 18" aria-hidden="true">
+              <polygon points="2.2,2.2 9,2.2 2.2,9" />
+              <polygon points="9,2.2 15.8,2.2 15.8,9" />
+              <polygon points="2.2,9 6.8,4.4 6.8,13.6" />
+              <polygon points="6.8,13.6 9,11.4 11.2,13.6 9,15.8" />
+              <polygon points="9,11.4 15.8,4.6 15.8,15.8" />
+              <polygon points="2.2,9 6.8,13.6 2.2,15.8" />
+            </svg>
+            <span>拼图中心</span>
+          </button>
+          <button id="adminNavButton" data-tool="admin" type="button" hidden>管理页</button>
+        </nav>
+        <div class="account-bar">
+          <span id="balanceText">余额 0 积分</span>
+          <button id="openPersonalCenter" type="button">个人中心</button>
+          <button id="openRecharge" type="button">充值</button>
+          <button id="logoutButton" type="button">退出</button>
+        </div>
+      </header>
+
+      <section id="toolPanel" class="tool-panel" hidden>
+        <div id="templateCenterPanel" class="tool-panel-card" hidden>
+          <div class="tool-panel-head">
+            <div>
+              <span>拼图中心</span>
+              <h2>多图拼装</h2>
+              <p>上传几张灯具产品图，一键生成统一浅灰背景、无隔断的空间标签拼图。</p>
+            </div>
+            <button class="tool-panel-close" data-tool-close type="button" aria-label="关闭">×</button>
+          </div>
+          <div class="collage-center">
+            <div class="collage-grid">
+              <section class="collage-card">
+                <div class="collage-card-head">
+                  <strong>产品图</strong>
+                  <span id="collageCounter">0/6</span>
+                </div>
+                <label id="collageUploadZone" class="collage-upload" for="collagePhotoInput">
+                  <input id="collagePhotoInput" type="file" accept="image/*" multiple hidden />
+                  <strong>上传产品图</strong>
+                  <small>支持多张灯具图，系统会逐个保留主体信息</small>
+                </label>
+                <div id="collagePreviewList" class="collage-preview-list"></div>
+                <div class="collage-action-row">
+                  <div>
+                    <strong>空间标签拼图</strong>
+                    <small>统一浅灰背景，不做分区隔断，按产品名称自动添加标签。</small>
+                  </div>
+                  <label class="collage-clarity-control">
+                    <span>图片比例</span>
+                    <select id="collageRatioSelect">
+                      <option value="1:1 方图">1:1 方图</option>
+                      <option value="3:4 竖版">3:4 竖版</option>
+                      <option value="4:3 横版">4:3 横版</option>
+                      <option value="16:9 横版">16:9 横版</option>
+                      <option value="9:16 竖版">9:16 竖版</option>
+                    </select>
+                  </label>
+                  <label class="collage-clarity-control">
+                    <span>生成模型</span>
+                    <select id="collageModelSelect"></select>
+                  </label>
+                  <label class="collage-clarity-control">
+                    <span>清晰度</span>
+                    <select id="collageClaritySelect">
+                      <option value="2k">2K 高清</option>
+                      <option value="1k">1K 快速</option>
+                      <option value="4k">4K 高清</option>
+                    </select>
+                  </label>
+                </div>
+                <label class="collage-prompt-control">
+                  <span>补充提示词（可选）</span>
+                  <textarea id="collageRequirementInput" rows="3" placeholder="例如：产品之间留白更大，只保留浅灰背景，不要文字；或整体更像高端样册拼图。"></textarea>
+                </label>
+              </section>
+
+              <section class="collage-card collage-result-card">
+                <div class="collage-card-head">
+                  <strong>生成预览</strong>
+                  <span id="collageResultStatus">待生成</span>
+                </div>
+                <button id="collageResultPreview" class="collage-result-preview" type="button">
+                  <span>生成后在这里预览拼图</span>
+                </button>
+                <div class="collage-result-actions">
+                  <p id="collageCostText" class="credit-hint">本次消耗 -- 积分</p>
+                  <button id="generateCollageButton" type="button">识别并生成</button>
+                </div>
+                <div class="collage-save-row">
+                  <label>
+                    上次保存路径
+                    <input id="collageSavePathInput" readonly />
+                  </label>
+                  <button id="saveCollageButton" type="button" disabled>保存文件</button>
+                </div>
+              </section>
+            </div>
+
+            <p id="collageStatus" class="collage-status">建议上传 2-6 张产品图，拼图会保持统一浅灰背景，不做卡片隔断。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="styleCloneWorkspace" class="style-clone-page" hidden>
+        <div class="style-page-head">
+          <div>
+            <span>风格复刻 / 换主体</span>
+            <h1>用参考图的构图和风格，替换成当前灯具主体</h1>
+            <p>不选择相似类型时只按参考图直接换主体；选择相似类型后，才会反推构图和风格生成相似图。</p>
+          </div>
+          <button data-tool-close type="button">返回商品图</button>
+        </div>
+
+        <div class="style-page-grid">
+          <section class="style-card">
+            <div class="style-card-head">
+              <span>1</span>
+              <div>
+                <h2>产品图</h2>
+                <p>上传灯具产品图。</p>
+              </div>
+            </div>
+            <label id="styleSubjectUploadZone" class="style-upload-zone" for="styleSubjectInput">
+              <input id="styleSubjectInput" type="file" accept="image/*" multiple />
+              <strong>上传产品图</strong>
+              <em>SKU 图、正侧面、安装结构图均可</em>
+            </label>
+            <div id="styleSubjectPreview" class="style-thumb-row"></div>
+          </section>
+
+          <section class="style-card">
+            <div class="style-card-head">
+              <span>2</span>
+              <div>
+                <h2>参考图</h2>
+                <p>参考图数量决定本次换主体输出数量。</p>
+              </div>
+            </div>
+            <label id="templateReferenceUploadZone" class="style-upload-zone" for="templateReferenceInput">
+              <input id="templateReferenceInput" type="file" accept="image/*" multiple />
+              <strong>上传参考图</strong>
+              <em>可上传场景图、卖点图、细节图或竞品构图</em>
+            </label>
+            <div id="templateReferencePreview" class="template-reference-preview style-reference-preview" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <section class="style-card style-mode-card">
+          <div class="style-card-head">
+            <span>3</span>
+            <div>
+              <h2>生成逻辑</h2>
+              <p id="styleModeHint">直接保留参考图画面，只把原灯具替换成当前产品。</p>
+            </div>
+          </div>
+          <div class="similar-actions style-similar-actions" aria-label="相似图生成方式">
+            <button class="is-active" data-similar-mode="none" type="button">直接换主体</button>
+            <button data-similar-mode="scene" type="button">相似场景图</button>
+            <button data-similar-mode="selling" type="button">相似卖点/功能图</button>
+            <button data-similar-mode="detail" type="button">相似细节图</button>
+            <button data-similar-mode="real" type="button">相似实拍图</button>
+          </div>
+          <div class="style-model-panel">
+            <label>
+              <span>生成模型</span>
+              <select id="styleModelSelect"></select>
+            </label>
+            <label>
+              <span>图片比例</span>
+              <select id="styleRatioSelect">
+                <option value="3:4 竖版" selected>3:4 竖版</option>
+                <option value="4:5 竖版">4:5 竖版</option>
+                <option value="1:1 方图">1:1 方图</option>
+                <option value="4:3 横版">4:3 横版</option>
+                <option value="16:9 横版">16:9 横版</option>
+                <option value="9:16 竖版">9:16 竖版</option>
+              </select>
+            </label>
+            <label>
+              <span>清晰度</span>
+              <select id="styleClaritySelect">
+                <option value="2k">2K 高清</option>
+                <option value="1k">1K 快速</option>
+                <option value="4k">4K 高清</option>
+              </select>
+            </label>
+            <label>
+              <span>复刻强度</span>
+              <select id="styleCloneStrengthSelect">
+                <option value="balanced" selected>标准复刻</option>
+                <option value="strict">高度复刻</option>
+                <option value="loose">轻度参考</option>
+              </select>
+            </label>
+            <p id="styleModelHint">选择模型后点击识别并生成，后台会按当前模型真实调用。</p>
+          </div>
+          <label class="style-workspace-prompt">
+            <span>补充提示词（可选）</span>
+            <textarea id="styleRequirementInput" rows="3" placeholder="例如：主体稍微缩小，保持参考图构图和光影，不新增产品图里没有的结构。"></textarea>
+          </label>
+        </section>
+
+        <section class="style-card style-analysis-card">
+          <div class="style-card-head">
+            <span>4</span>
+            <div>
+              <h2>识别并生成</h2>
+              <p id="styleCloneStatus">上传产品图和参考图后直接生成；未选相似类型时只换主体。</p>
+            </div>
+          </div>
+          <label class="style-save-path">
+            <span>批量保存路径</span>
+            <input id="styleSavePathInput" placeholder="D:\codex\lamps studio\exports" />
+          </label>
+          <div class="style-result-toolbar">
+            <button id="styleBatchSaveButton" type="button">批量保存</button>
+            <div class="toolbar-action-stack">
+              <small id="styleRetryCostText" class="credit-hint is-compact" hidden>本次消耗 -- 积分</small>
+              <button id="styleRetryFailedButton" type="button">重新生成失败项</button>
+            </div>
+            <span id="styleQualitySummary">等待生成</span>
+          </div>
+          <div id="stylePreviewGrid" class="style-preview-grid">等待上传产品图和参考图</div>
+          <p id="styleCostText" class="credit-hint">本次消耗 -- 积分</p>
+          <button id="styleAnalyzeButton" class="black-button" type="button">识别并生成</button>
+        </section>
+      </section>
+
+      <section class="hero-title">
+        <span class="hero-pill">✦ AI 灯具商品图</span>
+        <h1>一键生成主图 & 详情图组</h1>
+        <p>上传灯具产品图，AI 智能分析产品特征，自动生成电商主图及多角度、多场景的详情图组</p>
+      </section>
+
+      <nav id="stepper" class="stepper" aria-label="生成步骤">
+        <div class="step" data-step="1"><span>1</span><strong>输入</strong></div>
+        <i></i>
+        <div class="step" data-step="2"><span>2</span><strong>分析中</strong></div>
+        <i></i>
+        <div class="step" data-step="3"><span>3</span><strong>确认规划</strong></div>
+        <i></i>
+        <div class="step" data-step="4"><span>4</span><strong>生成中</strong></div>
+        <i></i>
+        <div class="step" data-step="5"><span>5</span><strong>完成</strong></div>
+      </nav>
+
+      <nav id="workspaceTabs" class="workspace-tabs" hidden>
+        <button class="is-active" data-view="workspace" type="button">测试页 / 工作区</button>
+        <button data-view="admin" type="button">管理页</button>
+      </nav>
+
+      <section id="adminPanel" class="admin-panel" hidden>
+        <div class="admin-head">
+          <div>
+            <h2>管理员控制台</h2>
+            <p>控制全站 API Key、真实出图、Gemini 识别、用户积分、客服微信和在线回复。</p>
+          </div>
+          <span id="adminSettingsStatus">管理员已登录</span>
+        </div>
+        <div class="admin-command-row">
+          <label class="admin-section-picker">
+            <span>管理分组</span>
+            <select id="adminSectionSelect">
+              <option value="channel">出图通道与密钥</option>
+              <option value="models">默认模型</option>
+              <option value="sub2api">Sub2API 网关</option>
+              <option value="support">客服入口</option>
+              <option value="verification">短信与邮箱</option>
+              <option value="users">用户与积分</option>
+              <option value="records">财务记录</option>
+              <option value="leases">模型 Key 分配</option>
+              <option value="messages">在线咨询</option>
+            </select>
+          </label>
+          <div class="admin-quickbar">
+            <button id="adminBackWorkspace" type="button">返回工作区</button>
+            <button id="adminRefreshAll" type="button">刷新后台数据</button>
+            <button id="adminOpenSupport" type="button">打开客服</button>
+            <button id="adminClearSecrets" type="button">清空密钥输入</button>
+            <span id="adminQuickStatus">后台独立管理页</span>
+          </div>
+        </div>
+        <div id="adminHealthGrid" class="admin-health-grid"></div>
+        <div id="adminStats" class="admin-stats"></div>
+        <div class="admin-settings-stack">
+          <details id="adminGroupChannel" class="admin-settings-card" data-admin-group="channel" open>
+            <summary>
+              <span>01</span>
+              <div>
+                <strong>出图通道与密钥</strong>
+                <small>OpenAI、API易、云雾和真实出图开关</small>
+              </div>
+            </summary>
+            <div class="admin-grid">
+              <label>
+                OpenAI API Key
+                <input id="adminOpenAIKey" type="password" placeholder="sk-... 留空则不修改" />
+              </label>
+              <label>
+                Gemini API Key
+                <input id="adminGeminiKey" type="password" placeholder="AI... 留空则不修改" />
+              </label>
+              <label>
+                当前出图通道
+                <select id="adminImageProvider">
+                  <option value="yunwu">云雾 API</option>
+                  <option value="apiyi">API易</option>
+                  <option value="openai">OpenAI</option>
+                </select>
+              </label>
+              <label>
+                API易令牌 Token
+                <input id="adminAPIYiKey" type="password" placeholder="粘贴 API易令牌，留空则不修改" />
+              </label>
+              <label>
+                API易 Base URL
+                <input id="adminAPIYiBaseUrl" placeholder="https://api.apiyi.com/v1" />
+              </label>
+              <label class="switch-line">
+                <input id="adminAPIYiEnabled" type="checkbox" />
+                <span>优先使用 API易 出图</span>
+              </label>
+              <label>
+                云雾 API Token
+                <input id="adminYunwuKey" type="password" placeholder="粘贴云雾 API 令牌，留空则不修改" />
+              </label>
+              <label>
+                云雾 Base URL
+                <input id="adminYunwuBaseUrl" placeholder="https://yunwu.ai/v1" />
+              </label>
+              <label class="switch-line">
+                <input id="adminYunwuEnabled" type="checkbox" />
+                <span>优先使用云雾 API 出图</span>
+              </label>
+              <label class="switch-line">
+                <input id="adminRealApi" type="checkbox" />
+                <span>开启真实 API 出图</span>
+              </label>
+            </div>
+          </details>
+          <details id="adminGroupModels" class="admin-settings-card" data-admin-group="models" open>
+            <summary>
+              <span>02</span>
+              <div>
+                <strong>默认模型</strong>
+                <small>用户端初始生图模型和后台识别模型</small>
+              </div>
+            </summary>
+            <div class="admin-grid">
+              <label>
+                默认图像模型
+                <select id="adminDefaultImageModel"></select>
+              </label>
+              <label>
+                默认识别模型
+                <select id="adminDefaultAnalysisModel"></select>
+              </label>
+            </div>
+          </details>
+          <details id="adminGroupSub2API" class="admin-settings-card" data-admin-group="sub2api">
+            <summary>
+              <span>03</span>
+              <div>
+                <strong>Sub2API 网关</strong>
+                <small>连接本地或远程网关后台</small>
+              </div>
+            </summary>
+            <div class="admin-grid">
+              <label class="switch-line">
+                <input id="adminSub2APIEnabled" type="checkbox" />
+                <span>启用 Sub2API 网关管理</span>
+              </label>
+              <label>
+                Sub2API Base URL
+                <input id="adminSub2APIBaseUrl" placeholder="例如 http://127.0.0.1:3000" />
+              </label>
+              <label>
+                Sub2API 管理员 JWT
+                <input id="adminSub2APIAdminToken" type="password" placeholder="粘贴 Sub2API 管理员 JWT，留空则不修改" />
+              </label>
+              <label>
+                Sub2API 管理页路径
+                <input id="adminSub2APIDashboardPath" placeholder="/admin" />
+              </label>
+            </div>
+            <div class="admin-inline-actions">
+              <button id="adminTestSub2API" type="button">测试连接</button>
+              <button id="adminOpenSub2API" type="button">打开管理系统</button>
+            </div>
+            <div id="adminSub2APIStatus" class="sub2api-status">填写 Base URL 和管理员 JWT 后，可在这里测试连接。</div>
+          </details>
+          <details id="adminGroupSupport" class="admin-settings-card" data-admin-group="support">
+            <summary>
+              <span>04</span>
+              <div>
+                <strong>客服入口</strong>
+                <small>微信、二维码和在线留言欢迎语</small>
+              </div>
+            </summary>
+            <div class="admin-grid">
+              <label>
+                客服微信号
+                <input id="adminSupportWechat" placeholder="例如 LampsStudio-kefu" />
+              </label>
+              <label>
+                客服微信二维码图片地址
+                <input id="adminSupportWechatQr" placeholder="https://..." />
+              </label>
+              <label class="switch-line">
+                <input id="adminSupportOnline" type="checkbox" />
+                <span>开启在线留言回复</span>
+              </label>
+              <label class="admin-wide">
+                客服欢迎语
+                <textarea id="adminSupportWelcome" rows="3"></textarea>
+              </label>
+            </div>
+          </details>
+          <details id="adminGroupVerification" class="admin-settings-card" data-admin-group="verification">
+            <summary>
+              <span>05</span>
+              <div>
+                <strong>短信与邮箱</strong>
+                <small>注册验证码和邮箱发信配置</small>
+              </div>
+            </summary>
+            <div class="admin-grid">
+              <label>
+                阿里云短信 AccessKey ID
+                <input id="adminSmsAccessKeyId" type="password" placeholder="留空则不修改" />
+              </label>
+              <label>
+                阿里云短信 AccessKey Secret
+                <input id="adminSmsAccessKeySecret" type="password" placeholder="留空则不修改" />
+              </label>
+              <label>
+                短信签名
+                <input id="adminSmsSignName" placeholder="例如 lamps studio" />
+              </label>
+              <label>
+                短信模板 Code
+                <input id="adminSmsTemplateCode" placeholder="例如 SMS_123456789" />
+              </label>
+              <label>
+                SMTP Host
+                <input id="adminSmtpHost" placeholder="smtp.example.com" />
+              </label>
+              <label>
+                SMTP Port
+                <input id="adminSmtpPort" placeholder="465" />
+              </label>
+              <label>
+                SMTP 用户名
+                <input id="adminSmtpUser" type="password" placeholder="留空则不修改" />
+              </label>
+              <label>
+                SMTP 密码/授权码
+                <input id="adminSmtpPass" type="password" placeholder="留空则不修改" />
+              </label>
+              <label>
+                发件人 From
+                <input id="adminSmtpFrom" placeholder="lamps studio <no-reply@example.com>" />
+              </label>
+              <label class="switch-line">
+                <input id="adminSmtpSecure" type="checkbox" />
+                <span>SMTP 使用 SSL/TLS</span>
+              </label>
+            </div>
+          </details>
+        </div>
+        <button id="saveAdminSettings" class="black-button admin-save" type="button">保存管理员配置</button>
+        <div class="admin-data-stack">
+          <details id="adminGroupUsers" class="admin-section" data-admin-group="users" open>
+            <summary>
+              <div>
+                <strong>用户与积分</strong>
+                <small>查询账号、查看余额、调整积分</small>
+              </div>
+            </summary>
+            <div class="admin-section-head">
+              <input id="adminUserSearch" class="admin-search" placeholder="搜索手机号 / 邮箱 / 账号" />
+              <button id="refreshAdminDashboard" type="button">刷新</button>
+            </div>
+            <div id="adminUsers" class="admin-table"></div>
+          </details>
+          <details id="adminGroupRecords" class="admin-section" data-admin-group="records">
+            <summary>
+              <div>
+                <strong>财务记录</strong>
+                <small>后台汇总和充值订单，避免展示用户端明细流水</small>
+              </div>
+            </summary>
+            <div class="admin-finance-block">
+              <div id="adminFinanceSummary" class="admin-finance-summary"></div>
+              <div>
+                <h3>充值订单</h3>
+                <div id="adminPayments" class="admin-table compact"></div>
+              </div>
+              <div id="adminJobs" hidden></div>
+            </div>
+          </details>
+          <details id="adminGroupLeases" class="admin-section" data-admin-group="leases">
+            <summary>
+              <div>
+                <strong>模型 Key 分配</strong>
+                <small>查看用户绑定的模型额度</small>
+              </div>
+            </summary>
+            <div id="adminApiLeases" class="admin-table compact"></div>
+          </details>
+          <details id="adminGroupMessages" class="admin-messages" data-admin-group="messages">
+            <summary>
+              <div>
+                <strong>在线咨询</strong>
+                <small>查看用户留言并回复</small>
+              </div>
+            </summary>
+            <div id="adminSupportMessages" class="admin-message-list"></div>
+          </details>
+        </div>
+      </section>
+
+      <section id="plannerLayout" class="planner-layout">
+        <aside class="left-stack">
+          <section class="white-card upload-card">
+            <div class="card-head">
+              <div class="card-icon">▧</div>
+              <div>
+                <h2>产品图</h2>
+                <p>上传清晰的产品图片</p>
+              </div>
+              <span id="photoCounter">0/6</span>
+            </div>
+            <div id="previewList" class="photo-grid">
+              <label id="dropZone" class="photo-add" for="photoInput">
+                <input id="photoInput" type="file" accept="image/*" multiple />
+                <span class="upload-symbol">⇧</span>
+                <strong>点击或拖拽上传</strong>
+                <em>多图上传时建议仅上传必要的视角或 SKU 图，图片不是越多越好</em>
+              </label>
+            </div>
+          </section>
+
+          <section class="white-card control-card">
+            <div id="imageScopeTabs" class="image-scope-tabs" aria-label="出图类型">
+              <button type="button" data-image-scope="main">主图</button>
+              <button class="is-active" type="button" data-image-scope="detail">详情图</button>
+            </div>
+
+            <label class="requirement-label">
+              <span id="requirementLabelText">详情图要求</span>
+              <textarea id="requirementInput" rows="6" placeholder="可留空：AI 会根据上传产品图生成主图或详情图提示词；也可输入你的画面想法，AI 会帮你优化细节。"></textarea>
+            </label>
+
+            <div class="two-fields">
+              <label>
+                模型
+                <select id="modelSelect"></select>
+              </label>
+              <label>
+                尺寸比例
+                <select id="ratioSelect">
+                  <option value="3:4 竖版">3:4 竖版</option>
+                  <option value="4:5 竖版">4:5 竖版</option>
+                  <option value="1:1 方图">1:1 方图</option>
+                  <option value="16:9 横版">16:9 横版</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="two-fields">
+              <label>
+                清晰度
+                <select id="claritySelect">
+                  <option value="2k">2K 高清</option>
+                  <option value="1k">1K 快速</option>
+                  <option value="4k">4K 高清</option>
+                </select>
+              </label>
+              <label>
+                生成数量
+                <select id="quantitySelect">
+                  <option value="1">1 张</option>
+                  <option value="2">2 张</option>
+                  <option value="3">3 张</option>
+                  <option value="4">4 张</option>
+                  <option value="5">5 张</option>
+                  <option value="6">6 张</option>
+                  <option value="7">7 张</option>
+                  <option value="8">8 张</option>
+                  <option value="9">9 张</option>
+                  <option value="10">10 张</option>
+                  <option value="11">11 张</option>
+                  <option value="12">12 张</option>
+                  <option value="13" selected>13 张</option>
+                  <option value="14">14 张</option>
+                  <option value="15">15 张</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="white-card wallet-card">
+            <div>
+              <h2>积分</h2>
+              <p id="costText">本次消耗 -- 积分</p>
+            </div>
+            <button id="analyzeButton" class="analyze-button" type="button">✦ 分析产品</button>
+            <button id="generateButton" class="black-button legacy-generate-button" type="button" hidden>生成详情图组</button>
+          </section>
+        </aside>
+
+        <section class="right-stack">
+          <section class="white-card preview-card">
+            <div class="card-head">
+              <div class="card-icon">✦</div>
+              <div>
+                <h2>生成结果</h2>
+                <p id="statusText">上传产品图并点击分析开始</p>
+              </div>
+            </div>
+
+            <article class="spec-panel">
+              <div class="spec-head">
+                <div class="card-icon">◉</div>
+                <div>
+                  <h3 id="specTitle">整体设计规范</h3>
+                  <p id="specSubtitle">所有图片遵循统一视觉标准</p>
+                </div>
+                <button type="button">⌃</button>
+              </div>
+              <div id="specBody" class="spec-body"></div>
+            </article>
+
+            <div class="image-plan-title">
+              <div class="card-icon">▧</div>
+              <div>
+                <h3>图片规划</h3>
+                <p id="planCount">共 13 张图片，点击可编辑标题和描述</p>
+              </div>
+              <label class="save-path-tool">
+                <span>批量保存路径</span>
+                <input id="savePathInput" placeholder="D:\codex\lamps studio\exports" />
+              </label>
+            </div>
+            <div id="planList" class="plan-list"></div>
+          </section>
+        </section>
+      </section>
+
+      <section id="generationHistoryPanel" class="generation-history-panel" hidden>
+        <div class="generation-history-head">
+          <div>
+            <span>生成结果</span>
+            <h2 id="generationHistoryTitle">生成记录</h2>
+            <p id="generationHistorySummary">本次会话生成过的图片会集中显示在这里，方便回看核对。</p>
+          </div>
+          <button id="clearGenerationHistory" type="button">刷新记录</button>
+        </div>
+        <div id="generationHistoryList" class="generation-history-list"></div>
+      </section>
+
+      <button class="help-float support-button" type="button" aria-label="联系客服">ʚɞ</button>
+    </main>
+
+    <div id="supportPanel" class="support-panel" hidden>
+      <div class="support-card">
+        <div class="support-head">
+          <div>
+            <h2>联系 lamps studio 客服</h2>
+            <p id="supportWelcome">您好，这里是 lamps studio 客服。</p>
+          </div>
+          <button id="closeSupport" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+        <div id="supportWechatBox" class="support-wechat">
+          <span>客服微信</span>
+          <strong id="supportWechatText">管理员暂未配置</strong>
+          <button id="copyWechat" type="button">复制</button>
+          <img id="supportWechatQr" alt="客服微信二维码" hidden />
+        </div>
+        <div id="supportThread" class="support-thread"></div>
+        <textarea id="supportMessageInput" rows="3" placeholder="请输入问题，管理员可在线回复"></textarea>
+        <button id="sendSupportMessage" class="black-button" type="button">发送咨询</button>
+      </div>
+    </div>
+
+    <div id="personalCenterModal" class="modal" hidden>
+      <div class="modal-card personal-center-card">
+        <div class="modal-head">
+          <div>
+            <span class="modal-eyebrow">个人账号</span>
+            <h2>个人中心</h2>
+          </div>
+          <button id="closePersonalCenter" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+        <div id="personalCenterSummary" class="personal-summary">
+          <div><strong>--</strong><span>当前余额</span></div>
+          <div><strong>--</strong><span>累计充值</span></div>
+          <div><strong>--</strong><span>累计消耗</span></div>
+        </div>
+        <div class="personal-tabs" role="tablist" aria-label="个人中心记录">
+          <button class="is-active" data-personal-tab="consumption" type="button">积分消耗</button>
+          <button data-personal-tab="payments" type="button">充值记录</button>
+          <button data-personal-tab="leases" type="button">模型额度</button>
+        </div>
+        <div id="personalCenterList" class="personal-list"></div>
+      </div>
+    </div>
+
+    <div id="rechargeModal" class="modal" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2>充值积分</h2>
+          <button id="closeRecharge" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+        <div id="paymentForm" class="payment-form">
+          <label>
+            充值金额
+            <input id="rechargeAmount" type="number" min="1" step="1" value="100" />
+          </label>
+          <div class="quick-amounts">
+            <button data-amount="50" type="button">50 元</button>
+            <button data-amount="100" type="button">100 元</button>
+            <button data-amount="300" type="button">300 元</button>
+            <button data-amount="500" type="button">500 元</button>
+          </div>
+          <div class="pay-methods">
+            <button class="is-selected" data-provider="wechat" type="button">微信支付</button>
+            <button data-provider="alipay" type="button">支付宝支付</button>
+          </div>
+          <p id="paymentHint">充值到账规则：1 元 = 10 积分。</p>
+          <button id="createPaymentButton" class="black-button" type="button">生成支付二维码</button>
+        </div>
+        <div id="paymentQr" class="payment-qr" hidden>
+          <img id="paymentQrImage" alt="支付二维码" />
+          <h3 id="paymentQrTitle">请扫码支付</h3>
+          <p id="paymentQrStatus">等待支付平台回调到账</p>
+          <button id="backToPaymentForm" type="button">重新选择金额</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="imageLightbox" class="modal image-lightbox" hidden>
+      <div class="image-lightbox-card">
+        <div class="modal-head">
+          <h2 id="imageLightboxTitle">生成结果预览</h2>
+          <button id="closeImageLightbox" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+        <div id="imageLightboxImageWrap" class="lightbox-image-wrap" role="button" tabindex="0" aria-label="拖拽框选要修改的文字区域">
+          <img id="imageLightboxImage" alt="生成结果大图" />
+          <span id="imageLightboxTarget" class="lightbox-text-target" hidden></span>
+        </div>
+        <div id="imageLightboxTextEditor" class="lightbox-text-editor" hidden>
+          <small id="imageLightboxTextHint">先在大图上拖拽框选要改的文字区域，再输入替换内容。</small>
+          <textarea id="imageLightboxTextInput" rows="2" placeholder="例如：把主标题改成「柔光不刺眼」，删除多余英文。"></textarea>
+          <div class="lightbox-editor-action">
+            <span id="imageLightboxTextCost" class="credit-hint">本次消耗 -- 积分</span>
+            <button id="imageLightboxTextButton" type="button">重新生成修改图</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js?v=20260511-history-retention-v1" type="module"></script>
+  </body>
+</html>

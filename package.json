@@ -1,0 +1,21 @@
+{
+  "name": "lamps-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Public web prototype for one-click lamp ecommerce image packs with login, balance, recharge, upload, and OpenAI image API integration hooks.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test:real-e2e": "node tests/real-e2e/setup.mjs && playwright test -c playwright.real-e2e.config.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "nodemailer": "^8.0.7",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  }
+}
