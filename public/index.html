@@ -224,7 +224,7 @@
           <div>
             <span>风格复刻 / 换主体</span>
             <h1>用参考图的构图和风格，替换成当前灯具主体</h1>
-            <p>不选择相似类型时只按参考图直接换主体；选择相似类型后，才会反推构图和风格生成相似图。</p>
+            <p>不选择相似类型时只按参考图直接换主体；选择相似类型后，才会反推构图和风格生成相似图。AI 会自动识别灯具类型、安装结构和体量。</p>
           </div>
           <button data-tool-close type="button">返回商品图</button>
         </div>
@@ -268,7 +268,7 @@
             <span>3</span>
             <div>
               <h2>生成逻辑</h2>
-              <p id="styleModeHint">直接保留参考图画面，只把原灯具替换成当前产品。</p>
+              <p id="styleModeHint">直接保留参考图画面，只把原灯具替换成当前产品，并锁定当前灯具的安装结构。</p>
             </div>
           </div>
           <div class="similar-actions style-similar-actions" aria-label="相似图生成方式">
@@ -455,6 +455,22 @@
                 <span>开启真实 API 出图</span>
               </label>
             </div>
+          </details>
+          <details id="adminGroupModelChannels" class="admin-settings-card" data-admin-group="model-channels">
+            <summary>
+              <span>02</span>
+              <div>
+                <strong>模型通道池</strong>
+                <small>多 Key 并发调度，支持 API易、云雾、Gemini、OpenAI</small>
+              </div>
+            </summary>
+            <div class="admin-grid">
+              <label class="admin-wide-field">
+                通道 JSON
+                <textarea id="adminModelChannelsJson" rows="10" spellcheck="false" placeholder='[{"label":"apiyi-1","provider":"apiyi","apiKey":"sk-...","baseUrl":"https://api.apiyi.com/v1","purpose":"both","models":["*"],"maxConcurrency":5,"rpm":0,"priority":10,"enabled":true}]'></textarea>
+              </label>
+            </div>
+            <div id="adminModelChannelsStatus" class="admin-channel-status"></div>
           </details>
           <details id="adminGroupModels" class="admin-settings-card" data-admin-group="models" open>
             <summary>
@@ -671,7 +687,7 @@
             </label>
 
             <div class="two-fields">
-              <label>
+              <label class="model-field">
                 模型
                 <select id="modelSelect"></select>
               </label>
@@ -743,7 +759,7 @@
                 <div class="card-icon">◉</div>
                 <div>
                   <h3 id="specTitle">整体设计规范</h3>
-                  <p id="specSubtitle">所有图片遵循统一视觉标准</p>
+                  <p id="specSubtitle">所有图片遵循的统一视觉标准</p>
                 </div>
                 <button type="button">⌃</button>
               </div>

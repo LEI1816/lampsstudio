@@ -20,3 +20,19 @@ services:
         value: "0"
       - key: OPENAI_ANALYSIS_MODEL
         value: gpt-5.2
+      - key: MAX_IMAGE_GENERATION_CONCURRENCY
+        value: "2"
+      - key: STYLE_IMAGE_GENERATION_CONCURRENCY
+        value: "4"
+      - key: STYLE_IMAGE_GENERATION_SHOT_MAX_ATTEMPTS
+        value: "2"
+      - key: STYLE_REFERENCE_MOUNT_TARGET_ANALYSIS
+        value: strict
+      - key: YUNWU_IMAGE_GENERATION_CONCURRENCY
+        value: "1"
+      - key: GENERATION_STREAM_HEARTBEAT_MS
+        value: "15000"
+      - key: IMAGE_GENERATION_SHOT_MAX_ATTEMPTS
+        value: "4"
+      - key: IMAGE_GENERATION_ROUND_PAUSE_MS
+        value: "6000"
