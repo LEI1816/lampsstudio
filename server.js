@@ -87,6 +87,7 @@ const modelChannelRuntime = new Map();
 const MODEL_CHANNEL_SECRET = process.env.LAMPS_MODEL_CHANNEL_SECRET || process.env.MODEL_CHANNEL_SECRET || ADMIN_PASSWORD;
 const MODEL_CHANNEL_COOLDOWN_MS = Math.max(10000, Number(process.env.MODEL_CHANNEL_COOLDOWN_MS || 45000) || 45000);
 const MODEL_CHANNEL_RETRY_ATTEMPTS = Math.max(1, Math.min(6, Number(process.env.MODEL_CHANNEL_RETRY_ATTEMPTS || 3) || 3));
+const DESIGN_SPEC_ANALYSIS_TIMEOUT_MS = Math.max(60000, Number(process.env.DESIGN_SPEC_ANALYSIS_TIMEOUT_MS || 150000) || 150000);
 const STYLE_IMAGE_GENERATION_CONCURRENCY = Math.max(
   1,
   Math.min(6, Math.floor(Number(process.env.STYLE_IMAGE_GENERATION_CONCURRENCY || process.env.STYLE_CLONE_GENERATION_CONCURRENCY || 4) || 4))
@@ -1456,6 +1457,7 @@ function analysisCacheSettings(settings = {}) {
     styleCloneStrategy: stableJson(settings.styleCloneStrategy || {}),
     collageStrategy: stableJson(settings.collageStrategy || {}),
     workspaceStrategyVersion: settings.workspaceStrategyVersion || 0,
+    promptVariant: settings.promptVariant || settings.detailPromptVariant || settings.productPromptVariant || settings.promptLayoutMode || "layout-v2",
     analysisModel: settings.analysisModel || DEFAULT_ANALYSIS_MODEL
   };
 }
@@ -1472,7 +1474,7 @@ function analysisCacheProduct(product = {}, settings = {}) {
 
 function analysisPlanCacheKey({ product = {}, files = [], counts = {}, layout = "", settings = {}, templateReferences = [], promptMode = "" } = {}) {
   const payload = {
-    v: 24,
+    v: 26,
     product: stableJson(analysisCacheProduct(product, settings)),
     counts: stableJson(counts),
     layout: String(layout || "").trim(),
@@ -2030,6 +2032,7 @@ async function runWithModelChannelRetry(db, options = {}, worker) {
   const maxAttempts = Math.max(1, Number(options.maxAttempts || MODEL_CHANNEL_RETRY_ATTEMPTS) || MODEL_CHANNEL_RETRY_ATTEMPTS);
   const retryContext = options.generationContext && typeof options.generationContext === "object" ? options.generationContext : null;
   let lastError = null;
+  let lastChannelError = null;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     let lease = null;
     const startedAt = Date.now();
@@ -2045,10 +2048,15 @@ async function runWithModelChannelRetry(db, options = {}, worker) {
       lease.release(null, Date.now() - startedAt);
       return result;
     } catch (error) {
+      if (!lease && lastChannelError) {
+        lastError = lastChannelError;
+        break;
+      }
       lastError = error;
       if (lease) {
         lease.release(error, Date.now() - startedAt);
         failedIds.push(lease.channel.id);
+        lastChannelError = error;
       }
       if (!lease || (!isTransientGenerationError(error) && !isUpstreamQuotaError(error))) break;
     }
@@ -3905,8 +3913,10 @@ function lampCategoryMountFamily(value = "") {
   if (/magnetic[-\s]?track|linear[-\s]?track|track|轨道|磁吸/.test(text)) return "track";
   if (/spotlight|射灯|斗胆|洗墙/.test(text)) return "spotlight";
   if (/ceiling|吸顶/.test(text)) return "ceiling";
+  if (/panel|grille|classroom|blackboard|fan[-\s]?light|面板|格栅|教室|黑板|风扇灯|吊扇灯/.test(text)) return "ceiling";
   if (/chandelier|pendant|吊灯/.test(text)) return "chandelier";
   if (/wall|壁灯|墙装/.test(text)) return "wall";
+  if (/mirror|镜前/.test(text)) return "wall";
   if (/linear|strip|cabinet|线性|灯带|柜灯/.test(text)) return "linear";
   return "";
 }
@@ -4090,8 +4100,9 @@ function selectedLampCategoryLabel(settings = {}, product = {}) {
 }
 
 function selectedLampCategoryPrompt(settings = {}, product = {}) {
+  if (!hasForcedLampCategory(settings, product)) return "";
   const spec = selectedLampCategorySpec(settings, product);
-  return "已选择灯具类目：" + spec.label + "。生成时必须保留上传产品图里的真实结构。";
+  return `已选择灯具类目：${spec.label}。${spec.hint ? `类目提示：${spec.hint}。` : ""}生成时必须保留上传产品图里的真实结构。`;
 }
 
 function selectedLampCategoryExecutionPrompt(settings = {}, product = {}) {
@@ -8729,9 +8740,11 @@ function parseJsonFromText(value) {
 
 function recognitionRequestPrompt(product = {}, layout = "") {
   const cleanLayout = stripUserVisiblePlanningNoise(layout || product.requirement || "");
+  const selectedCategory = selectedLampCategoryPrompt({}, product);
   return [
     "你是灯具电商图产品识别模型。请观察用户上传的灯具图片，返回 JSON，不要写解释。",
     "必须基于图片真实可见信息，不要编造图片里没有的结构。",
+    selectedCategory ? `${selectedCategory}分析 lampType、lampSubtype、lampChannel、mountFamily 时以该预设为优先类目；如果图片局部信息不足，不要擅自改成其它灯具大类。` : "",
     "识别字段：productName, lampType, lampSubtype, lampChannel, mountFamily, installSurface, visibleParts, scaleClass, openingSize, beamAngle, style, material, colorPalette, functionText, targetSpace, installationPosition, installationMethod, lightUse, sellingPoint, structureKeywords, confidence。",
     "颜色识别硬规则：colorPalette 只写灯具产品本体和可见部件颜色，忽略产品图背景、桌面、墙面、地面、布景、阴影和环境反光；visualStrategy.colorSystem 只根据产品本身的材质、颜色和发光口推导适合的主色、辅助色、点缀色，不要把背景色写入色彩系统。",
     "小灯识别要求：筒灯、射灯、明装筒灯、轨道射灯必须分清 mountFamily。mountFamily 只能用 recessed-downlight, surface-downlight, spotlight, track-spotlight, track, ceiling, chandelier, wall, linear, generic。",
@@ -8746,7 +8759,7 @@ function recognitionRequestPrompt(product = {}, layout = "") {
     "如果用户补充了要求，只能作为命名或偏好参考，不能覆盖图片事实。",
     `用户补充要求：${cleanLayout || "无"}`,
     '返回格式：{"productName":"...","lampType":"...","lampSubtype":"...","lampChannel":"large|small|linear|wall|generic","mountFamily":"recessed-downlight|surface-downlight|spotlight|track-spotlight|track|ceiling|chandelier|wall|linear|generic","installSurface":"ceiling|wall|track|cabinet|unknown","visibleParts":"...","scaleClass":"tiny|small|medium|large|linear|general","openingSize":"","beamAngle":"","style":"...","material":"...","colorPalette":"...","functionText":"...","targetSpace":"...","installationPosition":"...","installationMethod":"...","lightUse":"...","sellingPoint":"...","structureKeywords":"...","confidence":0.8,"visualStrategy":{"productStyle":"...","suitableVisualStyle":"...","styleKeywords":"...","moodKeywords":"...","lightingEffect":"...","colorSystem":"...","visualLanguage":"...","decorativeElements":"...","recommendedView":"...","productComplexStructure":true,"hardConstraints":"..."}}'
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 async function analyzeProductWithGemini({
@@ -9581,6 +9594,592 @@ function buildProductWorkspaceDetailPlanFromRecognition({
     counts: normalizedCounts,
     settings,
     shots: methodology.shots
+  };
+}
+
+const GPT_PRODUCT_PLAN_MODE = "gpt-design-spec-v1";
+const GPT_PRODUCT_CONSISTENCY_BRIEF =
+  "生图一致性简版：以参考产品图为准，保持产品本体、结构、比例、颜色、材质、组件、表面细节和可见文字一致；不得新增、替换或改造产品组件与文字。场景/安装/功能图保持符合该灯具类型的真实安装比例。";
+
+const GPT_PRODUCT_FIXED_TARGET_SEQUENCE = [
+  { category: "main", title: "详情页首张图", type: "详情页首屏主视觉", sequenceSlot: "detail-cover", description: "详情页第一屏模块，产品主视觉+核心标题+短卖点组，建立第一眼购买兴趣" },
+  { category: "scene", title: "场景图", type: "风格/空间定位页", sequenceSlot: "scene-context", description: "用真实空间说明产品适用场景、生活方式、安装关系和氛围价值" },
+  { category: "detail", title: "细节图", type: "核心细节证明页", sequenceSlot: "material-detail", description: "把产品关键细节转译成购买利益点，而不是单纯微距照片" },
+  { category: "function", title: "功能图", type: "核心功能证明页", sequenceSlot: "function-core", description: "用可视化光效、对比、说明卡或示意结构证明一个核心功能价值" }
+];
+
+const GPT_PRODUCT_AUTO_FILL_POOL = [
+  { category: "function", title: "安装示意图", type: "安装优势页", sequenceSlot: "install-function", description: "用痛点标题、安装场景、步骤/箭头/说明卡证明安装方式和优势" },
+  { category: "detail", title: "材质工艺图", type: "材质工艺证明页", sequenceSlot: "material-value", description: "把表面处理、金属质感、灯罩或工艺细节转成可信卖点" },
+  { category: "function", title: "光效表现图", type: "光效证明页", sequenceSlot: "lighting-function", description: "用光束、光斑、照明范围或前后对比证明光效价值" },
+  { category: "real", title: "实拍质感图", type: "实拍体验页", sequenceSlot: "studio-real", description: "模拟真实拍摄质感、自然透视和到货观感，增强可信度" },
+  { category: "selling", title: "核心卖点图", type: "核心卖点页", sequenceSlot: "core-reason", description: "用标题、主视觉和底部卖点卡突出一个购买理由" },
+  { category: "scene", title: "多场景应用图", type: "多场景应用页", sequenceSlot: "application-scene", description: "展示另一类适用空间或使用场景，说明适配范围" },
+  { category: "function", title: "尺寸结构图", type: "尺寸/结构说明页", sequenceSlot: "dimension-params", description: "用简洁结构示意、尺寸关系或安装空间需求降低购买疑虑" },
+  { category: "detail", title: "组件细节图", type: "组件细节证明页", sequenceSlot: "emitter-detail", description: "围绕发光面、连接件、灯体边缘或局部组件说明一个真实优势" },
+  { category: "scene", title: "氛围场景图", type: "氛围应用页", sequenceSlot: "application-scene-alt", description: "展示不同空间氛围下的使用效果和情绪价值" },
+  { category: "selling", title: "价值卖点图", type: "价值卖点页", sequenceSlot: "selling-point-2", description: "补充一个与前面不重复的购买理由，可用对比条或结论卡表达" },
+  { category: "real", title: "安装后实拍图", type: "安装后实拍页", sequenceSlot: "installed-real", description: "展示安装完成后的自然现场效果和真实比例" }
+];
+
+function isGptDesignSpecSettings(settings = {}) {
+  return isProductWorkspaceSettings(settings) && String(settings?.productPlanMode || "") === GPT_PRODUCT_PLAN_MODE;
+}
+
+function isGptProductDesignPlan(plan = {}) {
+  const source = String(plan?.analysis?.source || plan?.promptDispatch?.source || "");
+  return (
+    String(plan?.designSpec?.mode || plan?.analysis?.planMode || plan?.settings?.productPlanMode || "") === GPT_PRODUCT_PLAN_MODE ||
+    source === "gpt-design-spec-plan" ||
+    source.startsWith("gpt-design-spec-plan")
+  );
+}
+
+function isGptProductDesignShot(shot = {}, settings = {}) {
+  const source = String(shot?.promptRoute?.source || "");
+  return isGptDesignSpecSettings(settings) || String(shot?.planMode || "") === GPT_PRODUCT_PLAN_MODE || source === "gpt-design-spec-plan";
+}
+
+function gptProductPlanTargets(counts = {}, settings = {}) {
+  const total = Math.max(1, totalCountFromServerCounts(counts) || 1);
+  const categoryIndexes = Object.fromEntries(SHOT_CATEGORY_KEYS.map((key) => [key, 0]));
+  const targets = [];
+  const push = (meta = {}, options = {}) => {
+    const category = SHOT_CATEGORY_KEYS.includes(meta.category) ? meta.category : "selling";
+    if (targets.length >= total) return false;
+    categoryIndexes[category] += 1;
+    const index = categoryIndexes[category];
+    const sequenceIndex = targets.length + 1;
+    targets.push({
+      id: meta.id || `${category}-${index}`,
+      category,
+      type: meta.type || meta.title || categoryLabel(category),
+      title: meta.title || `${categoryLabel(category)} ${index}`,
+      description: meta.description || categoryDescription(category, {}),
+      sequenceSlot: meta.sequenceSlot || "",
+      locked: Boolean(options.locked),
+      autoFill: Boolean(options.autoFill),
+      referenceIndex: targets.length,
+      variationIndex: sequenceIndex
+    });
+    return true;
+  };
+
+  if (String(settings.imageScope || "") === "main" || Number(counts?.main || 0) >= total) {
+    while (targets.length < total) {
+      push({
+        category: "main",
+        title: "主图",
+        type: "主图",
+        sequenceSlot: "",
+        description: "电商主图产品展示"
+      }, { locked: true });
+    }
+    return targets.slice(0, total);
+  }
+
+  GPT_PRODUCT_FIXED_TARGET_SEQUENCE.slice(0, Math.min(total, 4)).forEach((meta) => {
+    push(meta, { locked: true });
+  });
+
+  let autoIndex = 0;
+  while (targets.length < total) {
+    const poolItem = GPT_PRODUCT_AUTO_FILL_POOL[autoIndex % GPT_PRODUCT_AUTO_FILL_POOL.length];
+    push({
+      ...poolItem,
+      id: `auto-${targets.length + 1}`
+    }, { autoFill: true });
+    autoIndex += 1;
+  }
+
+  return targets.slice(0, total);
+}
+
+function gptProductProfileText(profile = {}) {
+  return [
+    profile.lampSubtype,
+    profile.lampType,
+    profile.lampCategoryLabel,
+    profile.lampCategory,
+    profile.mountFamily,
+    profile.installSurface,
+    profile.structureKeywords,
+    profile.productName
+  ].filter(Boolean).join(" ");
+}
+
+function isRecessedGptProductProfile(profile = {}) {
+  const text = gptProductProfileText(profile);
+  return /recessed[-\s]?downlight|嵌入|嵌入式|暗装|开孔|石膏板|吊顶开孔|面环/i.test(text);
+}
+
+function recessedGptLampLabel(profile = {}) {
+  const text = gptProductProfileText(profile);
+  if (/射灯|spotlight/i.test(text)) return "嵌入式射灯";
+  if (/筒灯|downlight/i.test(text)) return "嵌入式筒灯";
+  return "嵌入式灯具";
+}
+
+function recessedCeilingInstallPhrase(profile = {}) {
+  return `将该${recessedGptLampLabel(profile)}真实嵌入石膏板天花板。`;
+}
+
+function gptProductTargetNeedsRecessedCeilingPhrase(target = {}, prompt = "") {
+  const category = String(target.category || "");
+  const text = [
+    category,
+    target.type,
+    target.title,
+    target.description,
+    target.sequenceSlot,
+    prompt
+  ].filter(Boolean).join(" ");
+  const explicitCeilingContext = /安装|天花|吊顶|场景|光效|照明|开孔|石膏板|真实嵌入/i.test(text);
+  if (/detail|material/.test(category) && !explicitCeilingContext) return false;
+  if (/scene|real|install|application/i.test(category)) return true;
+  if (/function|main/i.test(category)) return explicitCeilingContext;
+  return explicitCeilingContext;
+}
+
+function ensureRecessedCeilingInstallPhrase(prompt = "", profile = {}, target = {}) {
+  const text = String(prompt || "").trim();
+  if (!text || !isRecessedGptProductProfile(profile)) return text;
+  const phrase = recessedCeilingInstallPhrase(profile);
+  if (text.includes(phrase) || /真实嵌入石膏板天花板|嵌入石膏板天花板/.test(text)) return text;
+  if (!gptProductTargetNeedsRecessedCeilingPhrase(target, text)) return text;
+  const suffix = `产品安装要求：${phrase}`;
+  const base = promptWithinCharacterLimit(text, Math.max(120, 520 - Array.from(suffix).length - 1));
+  return `${base} ${suffix}`;
+}
+
+const GPT_PRODUCT_LAYOUT_EXPERIMENT_TYPES = [
+  "全幅主视觉型",
+  "场景沉浸型",
+  "左右对比型",
+  "三宫格细节型",
+  "剖面说明型",
+  "参数卡片型",
+  "实拍证据型",
+  "光效可视化型",
+  "步骤示意型",
+  "材质拼贴型",
+  "留白杂志型",
+  "前后对比型"
+];
+
+function gptProductPromptVariant(settings = {}) {
+  const value = String(
+    settings.promptVariant ||
+      settings.detailPromptVariant ||
+      settings.productPromptVariant ||
+      settings.promptLayoutMode ||
+      "layout-v2"
+  ).trim().toLowerCase();
+  return value === "stable" ? "stable" : "layout-v2";
+}
+
+function gptProductPromptPlanningLines(settings = {}) {
+  if (gptProductPromptVariant(settings) !== "layout-v2") {
+    return [
+      "每条 Prompt 必须包含这 5 个要素：页面类型、销售任务、标题方向、画面结构、视觉要求、产品要求。",
+      "单张 Prompt 固定写法：为该产品生成一张【页面类型】电商详情页模块海报。销售任务：说明这张图要证明什么、说服用户什么。标题方向：给出 8-16 字中文标题方向。画面结构：顶部标题区，中部主视觉，底部卖点卡/对比条/说明区/参数卡之一。视觉要求：整套图统一字体层级、色彩系统、留白和电商质感。产品要求：产品外观以参考图为准。",
+      "单张 Prompt 范围：建议 180-420 个中文字符，复杂功能图可略长；必须像可执行的电商详情页版式 brief，不要像识别报告，也不要堆成后端规则长文。",
+      "单张 Prompt 避免：不要只写“生成一张场景图/细节图/产品图”；不要只有摄影画面而没有电商版式；不要复述完整整体设计规范；不要把多张图片内容写进同一条；不要加入产品图中不存在的结构、颜色、文字或参数；不要把产品零件识别报告塞进 Prompt；不要写“整体设计规范”“严格还原参考图”等总规则。"
+    ];
+  }
+  return [
+    "正式版 Prompt 规划：保留用户容易编辑的字段，但不要把整套图写成同一个模板反复改细节。",
+    `版式类型池：${GPT_PRODUCT_LAYOUT_EXPERIMENT_TYPES.join("、")}。每条 Prompt 必须选择一个版式类型，并避免连续两张使用同一版式；除非产品用途强制，否则整套图至少使用 3 种版式。`,
+    "每条 Prompt 必须包含这些字段：页面类型、销售任务、标题方向、版式类型、画面结构、视觉要求、产品要求。",
+    "单张 Prompt 字段写法：为该产品生成一张【页面类型】电商详情页模块海报。销售任务：说明这张图要证明什么、说服用户什么。标题方向：给出 8-16 字中文标题方向。版式类型：从版式类型池中选择一个。画面结构：根据版式类型描述主体位置、镜头距离、信息模块、留白节奏和页面阅读顺序。视觉要求：整套图统一字体层级、色彩系统、留白和电商质感。产品要求：产品外观以参考图为准。",
+    "画面结构写法：不要所有图片都写成“顶部标题区 + 中部主视觉 + 底部卡片”；可以使用全幅场景、左右对比、三宫格细节、局部剖面、参数卡片、实拍证据、光效曲线、步骤示意、材质拼贴等不同结构。",
+    "单张 Prompt 范围：建议 180-360 个中文字符，复杂功能图最多 420；必须像用户可编辑的电商详情页版式 brief，不要像识别报告，也不要堆成后端规则长文。",
+    "单张 Prompt 避免：不要只写版式标签不写画面；不要只有摄影画面而没有电商版式；不要复述完整整体设计规范；不要把多张图片内容写进同一条；不要加入产品图中不存在的结构、颜色、文字或参数；不要把产品零件识别报告塞进 Prompt；不要写“整体设计规范”“严格还原参考图”等总规则。"
+  ];
+}
+
+function productDesignSpecPlanRequestPrompt({ product = {}, counts = {}, layout = "", settings = {} } = {}) {
+  const cleanLayout = stripUserVisiblePlanningNoise(layout || product.requirement || "");
+  const targets = gptProductPlanTargets(counts, settings);
+  const total = targets.length || 1;
+  const imageModel = resolveModel(settings.model || DEFAULT_IMAGE_MODEL);
+  const clarity = CREDIT_RULES.clarity[settings.clarity]?.label || settings.clarity || "2K 高清";
+  const ratio = settings.ratio || "3:4 竖版";
+  const selectedCategory = hasForcedLampCategory(settings, product) ? selectedLampCategorySpec(settings, product) : null;
+  const promptVariant = gptProductPromptVariant(settings);
+  const promptPlanningLines = gptProductPromptPlanningLines(settings);
+  const designSpecJsonShape = promptVariant === "layout-v2"
+    ? '{"profile":{"productName":"","lampType":"","lampSubtype":"","material":"","colorPalette":"","structureKeywords":"","style":"","scaleClass":"","installSurface":"","mountFamily":""},"designSummaryText":"设计大纲：\\n风格基调：...\\n组图节奏：...\\n版式变化：...\\n比例空间：...\\n文案策略：...\\n产品一致性：...","designSpecText":"整体设计规范：\\n产品定位：...\\n视觉基调：...\\n画面语言：...\\n色彩氛围：...\\n组图结构：...\\n组图变化策略：...\\n比例与空间：...\\n文案策略：...\\n产品一致性：...\\n禁止变化：...\\n用户特殊要求：...","prompts":[{"id":"scene-1","title":"场景图","type":"场景图","category":"scene","prompt":"单张动态生图 brief"}]}'
+    : '{"profile":{"productName":"","lampType":"","lampSubtype":"","material":"","colorPalette":"","structureKeywords":"","style":"","scaleClass":"","installSurface":"","mountFamily":""},"designSummaryText":"设计大纲：\\n风格基调：...\\n组图节奏：...\\n比例空间：...\\n文案策略：...\\n产品一致性：...","designSpecText":"整体设计规范：\\n产品定位：...\\n视觉基调：...\\n画面语言：...\\n色彩氛围：...\\n组图结构：...\\n比例与空间：...\\n文案策略：...\\n产品一致性：...\\n禁止变化：...\\n用户特殊要求：...","prompts":[{"id":"scene-1","title":"场景图","type":"场景图","category":"scene","prompt":"单张动态生图 brief"}]}';
+  const fixedStructureLines = [
+    "N 张图结构规则：",
+    "1 张：只输出 1 张详情页首张图。",
+    "2 张：详情页首张图 + 场景图。",
+    "3 张：详情页首张图 + 场景图 + 细节图。",
+    "4 张：详情页首张图 + 场景图 + 细节图 + 功能图。",
+    "5 张及以上：前 4 张固定不变，剩余张数根据当前产品特点从补位池自动选择，不要重复同一种表达。"
+  ];
+  return [
+    "你是灯具电商详情图设计规划模型。请观察用户上传的灯具产品图，一次性生成整体设计规范和可直接用于生图模型的动态 Prompt。",
+    `用户已选择：生成模型=${imageModel.label || imageModel.id}；生成数量 N=${total}；清晰度=${clarity}；画幅=${ratio}；Prompt版本=${promptVariant === "layout-v2" ? "正式版" : "稳定版"}。`,
+    selectedCategory
+      ? `前端预设灯具种类：${selectedCategory.label}。${selectedCategory.hint ? `类目提示：${selectedCategory.hint}。` : ""}整体设计规范的产品定位和图片任务规划必须优先按该预设分析。`
+      : "前端预设灯具种类：自动识别，请根据参考图判断真实灯具类型。",
+    "核心逻辑：整体设计规范用于让你规划整套详情图；系统会自动附加固定一致性简版给生图模型；单张 Prompt 只负责当前这一张详情页模块海报的表达。",
+    "任务：",
+    "1. 观察上传的灯具产品图，识别灯具类别、整体气质、适合的电商详情页表达方向；产品外观细节只需作为参考图一致性依据，不要写成零件清单。",
+    "2. 根据以下范式生成该产品的“整体设计规范”。它是电商详情页视觉规划，不是产品结构鉴定报告，也不要写成一条冗长生图 Prompt：",
+    "整体设计规范：",
+    "产品定位：用一句话说明灯具类别、适用空间和电商详情页定位；类别优先采用前端预设，预设为空时再自行识别。",
+    `视觉基调：围绕该产品规划 ${clarity}、超写实/照片级、干净高级、现代电商详情页风格；说明画面要给用户的第一感受。`,
+    "画面语言：规划背景、镜头、光影、留白、主体位置、真实安装比例和空间尺度；重点是如何拍、如何排版、如何让产品显得专业可信。",
+    "色彩氛围：基于参考图产品本体颜色规划整体详情页配色、背景色、辅助色和高光氛围；不要把产品颜色重新设计成另一套。",
+    "组图结构：按 N 张图规划整套详情页的节奏，例如首张图、场景图、细节图、功能图、安装示意图、材质工艺图、光效图、实拍质感图等，每类图说明画面构成和表达目的。",
+    ...(promptVariant === "layout-v2" ? ["组图变化策略：说明整套图如何在统一风格下变化版式、镜头距离、信息密度和页面节奏，避免像同一模板反复替换局部内容。"] : []),
+    "比例与空间：场景图、安装图、功能图必须符合该灯具真实尺寸和安装语义，不能把灯具放大成不合理的大型装置。",
+    "文案策略：如需文字，只使用少量简体中文短标题/卖点词；不要随机品牌、参数、价格、水印或英文乱码。",
+    "产品一致性：产品本体、结构、颜色、材质、细节和可见文字均以参考产品图为准；整体规范里不要展开螺丝、卡扣、散热片、孔位等细节清单，除非它们是某张细节图的表达主题。",
+    "禁止变化：不得改变产品造型、增加不存在的组件、替换颜色、虚构品牌文字或参数。",
+    `用户特殊要求：${cleanLayout || ""}`,
+    "3. 生图一致性简版由系统固定为“以参考图为准，保持产品一致性”，你不需要生成外观描述版简版，也不要把产品外观细节压缩进 consistencyBrief。",
+    "4. 同时生成“设计大纲简版”designSummaryText，用于给普通用户查看。它只保留作图方向，不展示内部规则和细节清单：5-7 行即可，建议包含风格基调、组图节奏、版式变化、比例空间、文案策略、产品一致性；不要写品牌参数、禁止规则长文、产品零件清单或模型执行说明。",
+    "5. 基于整体设计规范和目标图片结构，为该产品生成 N 条详情图动态 Prompt。",
+    "重要角色：你不是普通商品照片提示词生成器，而是电商详情页策划师。每一张图都必须是“电商详情页模块海报”，不是单纯产品照、场景照或微距照片。",
+    ...fixedStructureLines,
+    `自动补位池：${GPT_PRODUCT_AUTO_FILL_POOL.map((item) => item.type).join("、")}。补位时根据产品图真实结构和适合表达的卖点选择，不要机械照抄顺序。`,
+    ...promptPlanningLines,
+    "灯具比例要求：首张图、场景图、安装示意图、功能图必须用正向语言表达真实安装比例，例如“保持与天花、墙面、家具的自然比例”“按同类灯具真实尺寸置入空间”，不要只写“灯具不要太大”。",
+    "嵌入式灯具硬要求：如果产品是嵌入式筒灯、嵌入式射灯、暗装灯或开孔灯，任何场景图、功能图、光效图、安装图、安装后实拍图里只要出现天花板照明，都必须写入这句：“将该嵌入式射灯/筒灯真实嵌入石膏板天花板”，并按真实开孔、面环贴合、灯体藏入吊顶处理。",
+    "单张 Prompt 示例：为该产品生成一张【精准聚光功能页】电商详情页模块海报。销售任务：证明该射灯适合重点照明并提升空间层次。标题方向：重点照明更有层次。画面结构：顶部大标题和一句说明，中部展示射灯真实嵌入石膏板天花板并照亮墙面装饰画，底部用简洁卖点卡列出“聚光、防眩、氛围感”。视觉要求：暖灰背景、现代家居质感、标题层级清晰。产品要求：产品外观以参考图为准。",
+    "每条 Prompt 可直接用于生成图像模型生成对应的电商详情页模块。",
+    "6. 输出格式：",
+    "为了系统读取，请只返回 JSON，不要 Markdown，不要代码块。JSON 格式：",
+    designSpecJsonShape,
+    "designSummaryText 必须以“设计大纲：”开头，只写用户需要看的作图方向，控制在 5-7 行。",
+    "designSpecText 必须以“整体设计规范：”开头，并包含完整规范文本；不要返回 consistencyBrief，系统会自动使用固定一致性简版。",
+    "前 1-4 张的用途必须严格按目标顺序；autoFill=true 的目标由你从自动补位池里按产品特点选择最合适用途，可调整 title/type/category，但不要重复前面已经表达过的内容。",
+    `prompts 必须恰好 ${total} 条。目标图片顺序为：${JSON.stringify(targets.map((target, index) => ({
+      index: index + 1,
+      id: target.id,
+      category: target.category,
+      title: target.title,
+      type: target.type,
+      description: target.description,
+      locked: target.locked,
+      autoFill: target.autoFill
+    })))}`
+  ].join("\n");
+}
+
+function promptItemsFromDesignSpecPayload(payload = {}) {
+  if (Array.isArray(payload?.prompts)) return payload.prompts;
+  if (Array.isArray(payload?.shots)) return payload.shots;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
+function designSpecTextFromPayload(payload = {}) {
+  const candidates = [
+    payload?.designSpecText,
+    payload?.overallDesignSpec,
+    payload?.designSpec,
+    payload?.["整体设计规范"]
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      const text = candidate.trim();
+      return /^整体设计规范[：:]/.test(text) ? text : `整体设计规范：\n${text}`;
+    }
+  }
+  return "";
+}
+
+function trimDesignSummaryLine(value = "", limit = 86) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const chars = Array.from(text);
+  if (chars.length <= limit) return text;
+  return `${chars.slice(0, Math.max(1, limit - 1)).join("").replace(/[，、；：:,.]*$/, "")}。`;
+}
+
+function buildDesignSummaryFromText(text = "") {
+  const clean = String(text || "")
+    .replace(/^整体设计规范[：:]\s*/i, "")
+    .replace(/\r/g, "")
+    .trim();
+  if (!clean) return "";
+  const fieldMap = [
+    ["视觉基调", "风格基调"],
+    ["组图结构", "组图节奏"],
+    ["组图变化策略", "版式变化"],
+    ["比例与空间", "比例空间"],
+    ["文案策略", "文案策略"],
+    ["产品一致性", "产品一致性"]
+  ];
+  const lines = clean.split("\n").map((line) => line.trim()).filter(Boolean);
+  const picked = [];
+  for (const [sourceLabel, targetLabel] of fieldMap) {
+    const source = lines.find((line) => line.startsWith(`${sourceLabel}：`) || line.startsWith(`${sourceLabel}:`));
+    if (!source) continue;
+    picked.push(`${targetLabel}：${trimDesignSummaryLine(source.replace(new RegExp(`^${sourceLabel}[：:]\\s*`), ""))}`);
+  }
+  const fallback = lines
+    .filter((line) => !/用户特殊要求|禁止变化|严格|不得|不要返回|consistencyBrief/i.test(line))
+    .map((line) => trimDesignSummaryLine(line.replace(/^[-\d.、)\s]+/, "")))
+    .filter(Boolean);
+  const summaryLines = (picked.length >= 3 ? picked : fallback).slice(0, 6);
+  return summaryLines.length ? `设计大纲：\n${summaryLines.join("\n")}` : "";
+}
+
+function designSummaryTextFromPayload(payload = {}, designSpecText = "") {
+  const candidates = [
+    payload?.designSummaryText,
+    payload?.designSummary,
+    payload?.designBrief,
+    payload?.["设计大纲简版"],
+    payload?.["设计大纲"]
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || !candidate.trim()) continue;
+    const text = candidate.trim();
+    const withPrefix = /^设计大纲[：:]/.test(text) ? text : `设计大纲：\n${text}`;
+    const lines = withPrefix.split("\n").map((line) => line.trim()).filter(Boolean);
+    return lines.length <= 7 ? withPrefix : [lines[0], ...lines.slice(1, 7)].join("\n");
+  }
+  return buildDesignSummaryFromText(designSpecText);
+}
+
+function ensureDesignSpecBriefPrefix(value = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return /^生图一致性简版[：:]/.test(text) ? text : `生图一致性简版：${text}`;
+}
+
+function gptProductConsistencyBrief() {
+  return GPT_PRODUCT_CONSISTENCY_BRIEF;
+}
+
+function promptWithinCharacterLimit(value = "", limit = 150) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const chars = Array.from(text);
+  if (chars.length <= limit) return text;
+  const sentences = text.split(/(?<=[。！？!?；;])/).map((item) => item.trim()).filter(Boolean);
+  let result = "";
+  for (const sentence of sentences) {
+    const next = `${result}${sentence}`;
+    if (Array.from(next).length > limit) break;
+    result = next;
+  }
+  if (result) return result;
+  const clipped = chars.slice(0, Math.max(1, limit - 1)).join("").replace(/[，、；：:,.]*$/, "");
+  return `${clipped}。`;
+}
+
+function normalizeGptProductDynamicPrompt(value = "", limit = 420) {
+  const text = String(value || "")
+    .replace(/^\s*(?:Prompt|提示词|单张\s*Prompt)\s*[：:]\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "";
+  return promptWithinCharacterLimit(text, limit);
+}
+
+function gptDesignSpecGenerationPrompt(prompt = "", designSpec = {}, profile = {}) {
+  void designSpec;
+  const brief = gptProductConsistencyBrief();
+  const task = ensureRecessedCeilingInstallPhrase(
+    normalizeGptProductDynamicPrompt(prompt, 420),
+    profile,
+    { category: "", type: "", title: "", sequenceSlot: "" }
+  );
+  return [brief, task ? `当前图片任务：${task}` : ""].filter(Boolean).join("\n\n");
+}
+
+function normalizeGptProductDesignSpecPlanResult(payload, { product = {}, counts = {}, settings = {} } = {}) {
+  const targets = gptProductPlanTargets(counts, settings);
+  const incoming = promptItemsFromDesignSpecPayload(payload);
+  if (incoming.length !== targets.length) {
+    throw new Error(`识别模型返回的 Prompt 数量不匹配：需要 ${targets.length} 条，返回 ${incoming.length} 条`);
+  }
+  const designSpecText = designSpecTextFromPayload(payload);
+  if (!designSpecText) throw new Error("识别模型没有返回整体设计规范");
+  const designSummaryText = designSummaryTextFromPayload(payload, designSpecText);
+  const profile = applySelectedLampCategory(
+    sanitizeRecognitionProfile(mergeProfileProduct(product, payload?.profile || payload?.product || {})),
+    settings
+  );
+  const consistencyBrief = gptProductConsistencyBrief();
+  const byId = new Map(incoming.filter((item) => item && typeof item === "object" && item.id).map((item) => [String(item.id), item]));
+  const shots = targets.map((target, index) => {
+    const planned = byId.get(target.id) || incoming[index] || {};
+    const rawPrompt = String(
+      typeof planned === "string"
+        ? planned
+        : planned.prompt || planned.text || planned.content || planned.description || ""
+    ).trim();
+    const prompt = ensureRecessedCeilingInstallPhrase(
+      normalizeGptProductDynamicPrompt(rawPrompt, 420),
+      profile,
+      target
+    );
+    if (!prompt) throw new Error(`识别模型没有返回第 ${index + 1} 条 Prompt`);
+    const plannedCategory = SHOT_CATEGORY_KEYS.includes(planned.category) ? planned.category : target.category;
+    const category = target.locked ? target.category : plannedCategory;
+    const title = target.locked
+      ? target.title
+      : String(planned.title || planned.type || target.title || `${categoryLabel(category)} ${index + 1}`).trim();
+    const type = target.locked ? target.type : String(planned.type || planned.title || target.type || title).trim();
+    return {
+      id: String(planned.id || target.id),
+      category,
+      title,
+      description: String(planned.description || target.description || "").trim(),
+      ratio: String(settings.ratio || "3:4 竖版"),
+      referenceIndex: index,
+      variationIndex: index + 1,
+      prompt,
+      generationPrompt: gptDesignSpecGenerationPrompt(prompt, { consistencyBrief, rawText: designSpecText }, profile),
+      promptRoute: {
+        source: "gpt-design-spec-plan",
+        category,
+        label: categoryLabel(category),
+        pageRole: type,
+        sequenceSlot: target.sequenceSlot || String(planned.sequenceSlot || ""),
+        autoFill: Boolean(target.autoFill),
+        planMode: GPT_PRODUCT_PLAN_MODE
+      },
+      planMode: GPT_PRODUCT_PLAN_MODE,
+      imageUrl: "",
+      status: ""
+    };
+  });
+  return { profile, designSpecText, designSummaryText, consistencyBrief, shots };
+}
+
+async function requestProductDesignSpecPlanWithAPIYi({ files = [], product = {}, counts = {}, layout = "", settings = {}, model, apiKey, baseUrl, providerName = "OpenAI-compatible" } = {}) {
+  if (!apiKey) throw new Error(`${providerName} API key is not configured.`);
+  const content = [
+    { type: "text", text: productDesignSpecPlanRequestPrompt({ product, counts, layout, settings }) },
+    ...files.slice(0, 4).map((file) => ({
+      type: "image_url",
+      image_url: { url: `data:${file.mimetype || "image/png"};base64,${file.buffer.toString("base64")}` }
+    }))
+  ];
+  const response = await fetch(`${String(baseUrl || DEFAULT_APIYI_BASE_URL).replace(/\/+$/, "")}/chat/completions`, {
+    method: "POST",
+    signal: AbortSignal.timeout(DESIGN_SPEC_ANALYSIS_TIMEOUT_MS),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content }],
+      temperature: 0.35,
+      ...openAICompatibleTokenLimit(model, 8192),
+      ...openAICompatibleReasoningOptions(model),
+      response_format: { type: "json_object" }
+    })
+  });
+  const responsePayload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(apiErrorMessage(responsePayload, `${providerName} design spec planning failed: HTTP ${response.status}`));
+  const parsed = parseJsonFromText(responsePayload?.choices?.[0]?.message?.content || "");
+  if (!parsed) throw new Error(`${providerName} returned unparseable design spec JSON`);
+  return parsed;
+}
+
+async function requestProductDesignSpecPlanWithGemini({ files = [], product = {}, counts = {}, layout = "", settings = {}, model, apiKey, baseUrl = "", providerName = "Gemini", useBearerAuth = false } = {}) {
+  if (!apiKey) throw new Error(`${providerName} API key is not configured.`);
+  const endpoint = useBearerAuth
+    ? `${String(baseUrl || "https://api.apiyi.com/v1beta").replace(/\/+$/, "")}/models/${encodeURIComponent(model)}:generateContent`
+    : `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const headers = useBearerAuth
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }
+    : { "Content-Type": "application/json", "x-goog-api-key": apiKey };
+  const parts = [
+    { text: productDesignSpecPlanRequestPrompt({ product, counts, layout, settings }) },
+    ...files.slice(0, 4).map((file) => ({
+      inlineData: { mimeType: file.mimetype || "image/png", data: file.buffer.toString("base64") }
+    }))
+  ];
+  const response = await fetch(endpoint, {
+    method: "POST",
+    signal: AbortSignal.timeout(DESIGN_SPEC_ANALYSIS_TIMEOUT_MS),
+    headers,
+    body: JSON.stringify({
+      contents: [{ role: "user", parts }],
+      generationConfig: { temperature: 0.35, responseMimeType: "application/json", maxOutputTokens: 8192 }
+    })
+  });
+  const responsePayload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(apiErrorMessage(responsePayload, `${providerName} design spec planning failed: HTTP ${response.status}`));
+  const text = responsePayload?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n") || "";
+  const parsed = parseJsonFromText(text);
+  if (!parsed) throw new Error(`${providerName} returned unparseable design spec JSON`);
+  return parsed;
+}
+
+async function analyzeProductDesignSpecPlanWithModelPool({ db, product = {}, files = [], counts = {}, layout = "", settings = {} } = {}) {
+  const appSettings = getAppSettings(db);
+  const analysisModel = resolveAnalysisModel(appSettings.defaultAnalysisModel || DEFAULT_ANALYSIS_MODEL);
+  const providerKind = isGeminiAnalysisModel(analysisModel) ? "gemini" : "openai-compatible";
+  const model = providerKind === "gemini" ? analysisModel.id : apiYiIntelligenceModelCandidates(analysisModel.id, appSettings)[0];
+  const raw = await runWithModelChannelRetry(db, {
+    purpose: "analysis",
+    modelId: model,
+    providerKind,
+    modelOption: providerKind === "gemini"
+      ? { id: model, apiModel: model, provider: "gemini" }
+      : { id: model, apiModel: model, provider: "openai" }
+  }, async (channel) => {
+    if (providerKind === "gemini") {
+      const resolved = modelChannelGemini(channel);
+      return requestProductDesignSpecPlanWithGemini({
+        files,
+        product,
+        counts,
+        layout,
+        settings,
+        model,
+        apiKey: resolved.apiKey,
+        baseUrl: resolved.baseUrl,
+        providerName: resolved.providerName || "Gemini",
+        useBearerAuth: resolved.useBearerAuth
+      });
+    }
+    const resolved = modelChannelOpenAICompatible(channel);
+    return requestProductDesignSpecPlanWithAPIYi({
+      files,
+      product,
+      counts,
+      layout,
+      settings,
+      model,
+      apiKey: resolved.apiKey,
+      baseUrl: resolved.baseUrl,
+      providerName: resolved.providerName || "OpenAI-compatible"
+    });
+  });
+  const normalized = normalizeGptProductDesignSpecPlanResult(raw, { product, counts, settings });
+  console.info("[gpt-design-spec-plan] ok", JSON.stringify({ model, providerKind, shots: normalized.shots.length, promptChars: normalized.shots.map((shot) => String(shot.prompt || "").length) }));
+  return {
+    product: normalized.profile,
+    designSpecText: normalized.designSpecText,
+    designSummaryText: normalized.designSummaryText,
+    consistencyBrief: normalized.consistencyBrief,
+    shots: normalized.shots,
+    analysis: { source: "gpt-design-spec-plan", model, planMode: GPT_PRODUCT_PLAN_MODE, warning: "" }
+  };
+}
+
+function modelDesignSpecObject(designSpecText = "", settings = {}, counts = {}, consistencyBrief = "", designSummaryText = "") {
+  const total = totalCountFromServerCounts(counts) || 1;
+  return {
+    title: "整体设计规范",
+    subtitle: `识别模型生成的完整设计规范，共 ${total} 张图片；生图使用一致性简版`,
+    summaryText: String(designSummaryText || buildDesignSummaryFromText(designSpecText) || "").trim(),
+    rawText: String(designSpecText || "").trim(),
+    consistencyBrief: ensureDesignSpecBriefPrefix(consistencyBrief),
+    mode: GPT_PRODUCT_PLAN_MODE,
+    clarity: settings.clarity || "",
+    ratio: settings.ratio || ""
   };
 }
 
@@ -10668,7 +11267,10 @@ async function buildAnalyzedSuitePlan({ db, product = {}, files = [], counts = n
   if (usePlanCache) {
     const cached = readAnalysisPlanCache(cacheKey);
     const cachedSource = cached?.analysis?.source || cached?.promptDispatch?.source || "";
-    if (cached && !isLocalRecognitionFallbackSource(cachedSource)) {
+    if (isProductWorkspaceSettings(settings) && cached && isGptProductDesignPlan(cached)) {
+      return clonePlan(cached);
+    }
+    if (!isProductWorkspaceSettings(settings) && cached && !isLocalRecognitionFallbackSource(cachedSource)) {
       const refreshed = refreshProductWorkspaceDetailStrategyPlan(cached, {
         product,
         files,
@@ -10691,24 +11293,32 @@ async function buildAnalyzedSuitePlan({ db, product = {}, files = [], counts = n
     settings
   );
   if (productWorkspace) {
-    const recognition = await analyzeProductWithModelPool({
+    const modelPlan = await analyzeProductDesignSpecPlanWithModelPool({
       db,
       product: baseProduct,
       files,
+      counts: normalizedCounts,
       layout,
       settings
     });
-    const result = buildProductWorkspaceDetailPlanFromRecognition({
-      product: baseProduct,
-      recognizedProduct: recognition.product,
-      files,
+    const resultSettings = { ...settings, productPlanMode: GPT_PRODUCT_PLAN_MODE };
+    const result = {
+      profile: modelPlan.product,
+      designSpec: modelDesignSpecObject(modelPlan.designSpecText, resultSettings, normalizedCounts, modelPlan.consistencyBrief, modelPlan.designSummaryText),
+      analysis: {
+        ...(modelPlan.analysis || {}),
+        promptMode: promptMode || (layout ? "optimize" : "generate"),
+        optimizedRequirement: layout
+      },
+      promptDispatch: {
+        source: "gpt-design-spec-plan",
+        model: modelPlan.analysis?.model || analysisModel.id,
+        warning: ""
+      },
       counts: normalizedCounts,
-      layout,
-      settings,
-      templateReferenceCount: templateReferences.length,
-      analysis: recognition.analysis,
-      promptMode
-    });
+      settings: resultSettings,
+      shots: modelPlan.shots
+    };
     if (usePlanCache) writeAnalysisPlanCache(cacheKey, result);
     return clonePlan(result);
   }
@@ -11229,7 +11839,7 @@ function generationSpeedKey(settings = {}) {
 function generationMaxConcurrency() {
   const configured = Number(process.env.MAX_IMAGE_GENERATION_CONCURRENCY);
   if (Number.isFinite(configured) && configured > 0) return Math.max(1, Math.floor(configured));
-  return 2;
+  return 5;
 }
 
 function isYunwuProviderName(providerName = "") {
@@ -11240,7 +11850,7 @@ function isYunwuProviderName(providerName = "") {
 function yunwuGenerationMaxConcurrency() {
   const configured = Number(process.env.YUNWU_IMAGE_GENERATION_CONCURRENCY);
   if (Number.isFinite(configured) && configured > 0) return Math.max(1, Math.floor(configured));
-  return 2;
+  return 5;
 }
 
 function generationConcurrency(settings = {}, providerName = "") {
@@ -11249,27 +11859,17 @@ function generationConcurrency(settings = {}, providerName = "") {
   const providerMaxConcurrency = (isProductWorkspaceSettings(settings) || settings?.styleCloneMode) && isYunwuProviderName(providerName)
     ? Math.min(baseMaxConcurrency, yunwuGenerationMaxConcurrency())
     : baseMaxConcurrency;
-  const totalShotCount = Number(settings?.totalShotCount || settings?.generationShotTotal || 0);
-  if (
-    !settings?.styleCloneMode &&
-    isProductWorkspaceSettings(settings) &&
-    String(settings.imageScope || "detail") === "detail" &&
-    totalShotCount >= 10 &&
-    isYunwuProviderName(providerName)
-  ) {
-    return Math.max(1, Math.min(2, providerMaxConcurrency));
-  }
   const maxConcurrency = settings?.styleCloneMode && !isYunwuProviderName(providerName)
     ? Math.max(providerMaxConcurrency, STYLE_IMAGE_GENERATION_CONCURRENCY)
     : providerMaxConcurrency;
   let concurrency = 1;
   if (settings?.styleCloneMode) {
-    if (speed === "turbo") concurrency = 4;
+    if (speed === "turbo") concurrency = 5;
     else if (speed === "fast") concurrency = 3;
     else concurrency = 2;
     return Math.min(concurrency, maxConcurrency);
   }
-  if (speed === "turbo") concurrency = 4;
+  if (speed === "turbo") concurrency = 5;
   else if (speed === "fast") concurrency = 3;
   else concurrency = 2;
   return Math.min(concurrency, maxConcurrency);
@@ -11296,7 +11896,7 @@ function generationTimeoutMs({ clarity = "2k", styleCloneMode = false, useBearer
   const clarityKey = String(clarity || "2k").toLowerCase();
   let timeout = clarityKey === "4k" ? 240000 : clarityKey === "1k" ? 120000 : 180000;
   if (productWorkspace && !styleCloneMode) {
-    timeout = clarityKey === "4k" ? 150000 : clarityKey === "1k" ? 75000 : 90000;
+    timeout = clarityKey === "4k" ? 300000 : clarityKey === "1k" ? 150000 : 210000;
   }
   if (styleCloneMode) timeout = clarityKey === "4k" ? 360000 : clarityKey === "1k" ? 240000 : 300000;
   if (useBearerAuth) timeout += productWorkspace && !styleCloneMode ? 15000 : 30000;
@@ -11817,7 +12417,7 @@ async function generateOpenAIImage({ prompt, files, modelOption, ratio, clarity,
   }
 
   const form = new FormData();
-  const rolePrompt = generationInputRolePrompt(files, settings, {});
+  const rolePrompt = isGptDesignSpecSettings(settings) ? "" : generationInputRolePrompt(files, settings, {});
   form.append("model", modelOption.apiModel);
   form.append("prompt", [prompt, rolePrompt].filter(Boolean).join("\n\n"));
   form.append("size", openAISize(ratio));
@@ -11885,6 +12485,7 @@ async function generateGeminiImage({
   if (!selectedFiles.length) {
     throw new Error("Missing input image for generation.");
   }
+  const gptDesignSpecProductPrompt = isGptDesignSpecSettings(settings);
   const rolePrompt = generationInputRolePrompt(selectedFiles, settings, { styleSpec, isDirectStyleSwap });
   const instructionLines = [
     String(prompt || ""),
@@ -11905,12 +12506,14 @@ async function generateGeminiImage({
           ? styleSpec.generationGoal + " " + styleSpec.negativeRules
         : "不要添加随机文字、水印、标志或无关产品零件。"
   ];
-  const parts = [{ text: instructionLines.filter(Boolean).join("\n") }];
+  const parts = [{ text: gptDesignSpecProductPrompt ? String(prompt || "") : instructionLines.filter(Boolean).join("\n") }];
   selectedFiles.forEach((file, index) => {
     const roleInstruction = generationInputRoleInstruction(file, index, { settings, styleSpec, isDirectStyleSwap });
-    parts.push({
-      text: roleInstruction
-    });
+    if (!gptDesignSpecProductPrompt) {
+      parts.push({
+        text: roleInstruction
+      });
+    }
     parts.push({
       inlineData: {
         mimeType: file.mimetype || "image/png",
@@ -13822,42 +14425,60 @@ async function generateImageForShotDirect({
     : inputReferenceCount;
   const directSubjectSwap = isDirectStyleCloneSettings(settings) && generationFiles.some((file) => file.inputRole === "reference-canvas");
   const isProductWorkspace = isProductWorkspaceSettings(settings);
+  const gptDesignSpecProductPrompt = isGptProductDesignShot(shot, settings);
   const firstPrompt = directSubjectSwap
     ? directSwapGenerationPrompt(shot, "", settings, profile)
-    : isProductWorkspace
-      ? (String(shot.generationPrompt || "").trim() || generationPromptForShotPrompt(shot.prompt, { profile, category: shot.category, shot, settings }))
-      : ensureConsistencyInPrompt(shot.prompt, {
-          templateReferenceCount,
-          category: shot.category,
-          title: shot.title,
-          variationIndex: shotVariationIndex(shot, 0),
-          allowPlannedText: styleSimilarAllowsPlannedText(settings)
-        });
+    : gptDesignSpecProductPrompt
+      ? String(shot.generationPrompt || shot.prompt || "").trim()
+      : isProductWorkspace
+        ? (String(shot.generationPrompt || "").trim() || generationPromptForShotPrompt(shot.prompt, { profile, category: shot.category, shot, settings }))
+        : ensureConsistencyInPrompt(shot.prompt, {
+            templateReferenceCount,
+            category: shot.category,
+            title: shot.title,
+            variationIndex: shotVariationIndex(shot, 0),
+            allowPlannedText: styleSimilarAllowsPlannedText(settings)
+          });
   const firstGenerationPrompt = directSubjectSwap
     ? firstPrompt
-    : hiddenGenerationPrompt(firstPrompt, {
+    : gptDesignSpecProductPrompt
+      ? firstPrompt
+      : hiddenGenerationPrompt(firstPrompt, {
+          shot,
+          templateReferenceCount,
+          settings,
+          modelOption,
+          profile
+        });
+  const compactedPrompt = gptDesignSpecProductPrompt
+    ? {
+        prompt: firstGenerationPrompt,
+        meta: {
+          finalPromptChars: String(firstGenerationPrompt || "").length,
+          originalPromptChars: String(firstGenerationPrompt || "").length,
+          finalPromptLines: String(firstGenerationPrompt || "").split(/\n+/).filter((line) => line.trim()).length,
+          originalPromptLines: String(firstGenerationPrompt || "").split(/\n+/).filter((line) => line.trim()).length,
+          dedupedBlocks: [],
+          conflictWarnings: []
+        }
+      }
+    : compactGenerationPrompt(firstGenerationPrompt, {
         shot,
         templateReferenceCount,
         settings,
         modelOption,
         profile
       });
-  const compactedPrompt = compactGenerationPrompt(firstGenerationPrompt, {
-    shot,
-    templateReferenceCount,
-    settings,
-    modelOption,
-    profile
-  });
   const requestGenerationContext = generationContext && typeof generationContext === "object" ? generationContext : {};
   if (!requestGenerationContext.db) requestGenerationContext.db = db;
   requestGenerationContext.productWorkspace = isProductWorkspaceSettings(settings);
+  const generationSettings = gptDesignSpecProductPrompt ? { ...settings, productPlanMode: GPT_PRODUCT_PLAN_MODE } : settings;
   const imageUrl = await generateImageForShot({
     prompt: compactedPrompt.prompt,
     files: generationFiles,
     modelOption,
     ratio: shot.ratio,
-    clarity: settings.clarity,
+    clarity: generationSettings.clarity,
     geminiKey,
     geminiBaseUrl,
     geminiProviderName,
@@ -13865,10 +14486,10 @@ async function generateImageForShotDirect({
     openAICompatibleKey,
     openAICompatibleBaseUrl,
     openAICompatibleName,
-    settings,
+    settings: generationSettings,
     generationContext: requestGenerationContext
   });
-  const spatialLensQa = await maybeRunSpatialLensVisualQa({
+  const spatialLensQa = gptDesignSpecProductPrompt ? { status: "skip", reason: "gpt-design-spec-plan" } : await maybeRunSpatialLensVisualQa({
     db,
     imageUrl,
     shot,
@@ -15000,6 +15621,7 @@ function totalCountFromServerCounts(counts = {}) {
 function applyShotPromptOverrides(plan, overrides, options = {}) {
   const templateReferenceCount = Number(options.templateReferenceCount || 0);
   const productWorkspace = isProductWorkspaceSettings(options.settings || {});
+  const gptDesignSpecPlan = isGptProductDesignPlan(plan) || isGptDesignSpecSettings(options.settings || {});
   const profile = plan?.profile || {};
   if (!plan?.shots?.length || templateReferenceCount > 0) return plan;
   const normalized = normalizeShotPromptOverrides(overrides);
@@ -15010,7 +15632,9 @@ function applyShotPromptOverrides(plan, overrides, options = {}) {
     const override = byId.get(shot.id) || byIndex.get(index);
     if (!override?.prompt) return shot;
     const category = resolveShotTask({ ...shot, category: override.category || shot.category, prompt: override.prompt });
-    const prompt = productWorkspace
+    const prompt = gptDesignSpecPlan
+      ? String(override.prompt || "").trim()
+      : productWorkspace
       ? normalizeProductVisiblePrompt(override.prompt, category)
       : ensureConsistencyInPrompt(override.prompt, {
           templateReferenceCount,
@@ -15020,7 +15644,9 @@ function applyShotPromptOverrides(plan, overrides, options = {}) {
     return {
       ...shot,
       prompt,
-      generationPrompt: productWorkspace
+      generationPrompt: gptDesignSpecPlan
+        ? gptDesignSpecGenerationPrompt(prompt, plan.designSpec || {}, profile)
+        : productWorkspace
         ? generationPromptForShotPrompt(prompt, { profile, category, settings: options.settings || {}, shot: { ...shot, prompt } })
         : shot.generationPrompt || ""
     };
@@ -15033,6 +15659,7 @@ function normalizeClientGenerationPlan(value, { counts, settings, templateRefere
   const expectedCount = totalCountFromServerCounts(counts || {});
   if (expectedCount > 0 && value.shots.length !== expectedCount) return null;
   const productWorkspace = isProductWorkspaceSettings(settings);
+  const gptDesignSpecPlan = isGptProductDesignPlan(value) || isGptDesignSpecSettings(settings);
   const directSwap = Boolean(settings?.styleCloneMode && templateReferenceCount && (!settings.similarMode || settings.similarMode === "none"));
   const styleSimilar = Boolean(settings?.styleCloneMode && templateReferenceCount && settings.similarMode && settings.similarMode !== "none");
   const shots = value.shots
@@ -15057,26 +15684,30 @@ function normalizeClientGenerationPlan(value, { counts, settings, templateRefere
               variationIndex: shotVariationIndex(shot, index),
               allowPlannedText: styleSimilarAllowsPlannedText(settings)
             })
-          : productWorkspace
-            ? normalizeProductVisiblePrompt(shot.prompt || "", category)
-            : ensureConsistencyInPrompt(shot.prompt || "", {
-                templateReferenceCount,
-                category,
-                title: shot.title,
-                variationIndex: shotVariationIndex(shot, index)
-              });
+          : gptDesignSpecPlan
+            ? String(shot.prompt || "").trim()
+            : productWorkspace
+              ? normalizeProductVisiblePrompt(shot.prompt || "", category)
+              : ensureConsistencyInPrompt(shot.prompt || "", {
+                  templateReferenceCount,
+                  category,
+                  title: shot.title,
+                  variationIndex: shotVariationIndex(shot, index)
+                });
       const textOverlay = productWorkspace && settingsRequestNoVisibleText(settings) && !isCriticalDetailTextShot(shot, category)
         ? undefined
         : attachTextOverlayTheme(shot.textOverlay, value.profile || {}, { category, settings }) || undefined;
       const textRenderMode = textRenderModeForShot({ ...shot, category, textOverlay }, category, settings);
-      const generationPrompt = productWorkspace
-        ? generationPromptForShotPrompt(prompt, {
-            profile: value.profile || {},
-            category,
-            settings,
-            shot: { ...shot, prompt, textOverlay, textRenderMode }
-          })
-        : String(shot.generationPrompt || "").trim();
+      const generationPrompt = gptDesignSpecPlan
+        ? gptDesignSpecGenerationPrompt(prompt, value.designSpec || {}, value.profile || {})
+        : productWorkspace
+          ? generationPromptForShotPrompt(prompt, {
+              profile: value.profile || {},
+              category,
+              settings,
+              shot: { ...shot, prompt, textOverlay, textRenderMode }
+            })
+          : String(shot.generationPrompt || "").trim();
       return {
         id: String(shot.id || `${category}-${index + 1}`),
         category,
@@ -15106,26 +15737,28 @@ function normalizeClientGenerationPlan(value, { counts, settings, templateRefere
         textRenderMode,
         promptRoute: {
           ...(shot.promptRoute || {}),
-          source: styleSimilar ? "style-similar" : shot.promptRoute?.source || "client-confirmed",
+          source: gptDesignSpecPlan ? "gpt-design-spec-plan" : styleSimilar ? "style-similar" : shot.promptRoute?.source || "client-confirmed",
           category,
-          label: categoryLabel(category)
+          label: categoryLabel(category),
+          planMode: gptDesignSpecPlan ? GPT_PRODUCT_PLAN_MODE : shot.promptRoute?.planMode
         },
+        planMode: gptDesignSpecPlan ? GPT_PRODUCT_PLAN_MODE : shot.planMode,
         imageUrl: "",
         status: ""
       };
     })
     .filter((shot) => shot.prompt);
-  if (productWorkspace && productPlanUsesDetailNarrative(counts || {}, settings || {}) && !planHasDetailMethodologyNarrative({ shots })) {
+  if (productWorkspace && !gptDesignSpecPlan && productPlanUsesDetailNarrative(counts || {}, settings || {}) && !planHasDetailMethodologyNarrative({ shots })) {
     return null;
   }
   if (!shots.length) return null;
   return {
     profile: value.profile || {},
     designSpec: value.designSpec || buildDesignSpec(value.profile || {}, settings || {}, counts || normalizeCounts(), templateReferenceCount),
-    analysis: "",
-    promptDispatch: "",
+    analysis: value.analysis || {},
+    promptDispatch: value.promptDispatch || value.analysis?.promptDispatch || {},
     counts,
-    settings,
+    settings: gptDesignSpecPlan ? { ...(settings || {}), productPlanMode: GPT_PRODUCT_PLAN_MODE } : settings,
     shots
   };
 }
@@ -15337,7 +15970,10 @@ app.post("/api/jobs/product-suite/shot", requireAuth, suiteUpload, async (req, r
   const cost = singleImageCreditEstimate(settings);
   const credits = cost.credits;
   const shotInput = safeJson(req.body.shot, {});
-  let prompt = isProductWorkspaceSettings(settings)
+  const gptDesignSpecShot = isGptProductDesignShot(shotInput, settings);
+  let prompt = gptDesignSpecShot
+    ? String(req.body.prompt || "").trim()
+    : isProductWorkspaceSettings(settings)
     ? normalizeProductVisiblePrompt(req.body.prompt, shotInput.category)
     : ensureConsistencyInPrompt(req.body.prompt, {
         templateReferenceCount: templateReferences.length,
@@ -15368,11 +16004,13 @@ app.post("/api/jobs/product-suite/shot", requireAuth, suiteUpload, async (req, r
     /模型直接排版|文字由生图模型直接绘制/.test(String(shotInput.generationPrompt || ""))
   );
   const existingGenerationPrompt = String(shotInput.generationPrompt || "").trim();
-  const shotTextOverlay = productWorkspaceNoText || disableSmallLampDetailOverlay
+  const shotTextOverlay = gptDesignSpecShot || productWorkspaceNoText || disableSmallLampDetailOverlay
     ? undefined
     : attachTextOverlayTheme(shotInput.textOverlay, requestProfile, { category: shotInput.category, settings }) || undefined;
-  const shotTextRenderMode = textRenderModeForShot({ ...shotInput, category: shotInputCategory, textOverlay: shotTextOverlay }, shotInputCategory, settings);
-  const generationPrompt = isProductWorkspaceSettings(settings)
+  const shotTextRenderMode = gptDesignSpecShot ? "" : textRenderModeForShot({ ...shotInput, category: shotInputCategory, textOverlay: shotTextOverlay }, shotInputCategory, settings);
+  const generationPrompt = gptDesignSpecShot
+    ? gptDesignSpecGenerationPrompt(prompt, shotInput.designSpec || {}, requestProfile) || existingGenerationPrompt || prompt
+    : isProductWorkspaceSettings(settings)
     ? (!shouldRewriteProductModelTextPrompt && !disableSmallLampDetailOverlay ? existingGenerationPrompt : "") || generationPromptForShotPrompt(prompt, {
         profile: requestProfile,
         category: shotInput.category,
@@ -15848,11 +16486,11 @@ app.post("/api/analyze-product", requireAuth, suiteUpload, async (req, res) => {
   const settings = safeJson(req.body.settings, {});
   const layout = String(req.body.layout || "");
   let counts = normalizeCounts(safeJson(req.body.counts, {}));
-  if (wallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
+  if (!isProductWorkspaceSettings(settings) && wallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
     counts = wallLampFullDetailCounts(counts);
-  } else if (smallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
+  } else if (!isProductWorkspaceSettings(settings) && smallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
     counts = smallLampFullDetailCounts(counts);
-  } else if (largeLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
+  } else if (!isProductWorkspaceSettings(settings) && largeLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
     counts = largeLampFullDetailCounts(counts);
   }
   const promptMode = String(req.body.promptMode || "");
@@ -15886,11 +16524,11 @@ app.post("/api/jobs/product-suite/stream", requireAuth, suiteUpload, async (req,
   const product = safeJson(req.body.product, {});
   const settings = safeJson(req.body.settings, {});
   const layout = String(req.body.layout || "");
-  if (wallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
+  if (!isProductWorkspaceSettings(settings) && wallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
     counts = wallLampFullDetailCounts(counts);
-  } else if (smallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
+  } else if (!isProductWorkspaceSettings(settings) && smallLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
     counts = smallLampFullDetailCounts(counts);
-  } else if (largeLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
+  } else if (!isProductWorkspaceSettings(settings) && largeLampDetailSuiteRequested(settings, layout || product.requirement || "")) {
     counts = largeLampFullDetailCounts(counts);
   }
   const clientPlan = normalizeClientGenerationPlan(safeJson(req.body.plan, null), {
@@ -15972,18 +16610,21 @@ app.post("/api/jobs/product-suite/stream", requireAuth, suiteUpload, async (req,
     { templateReferenceCount: templateReferences.length, settings }
   );
   const totalShotCount = Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
-  plan.profile = gateSmallLampSpecEvidence(enhanceSmallLampProfileFromHints(
-    applyLargeLampProfileFromHints(
-      applySelectedLampCategory(mergeProfileProduct(inferProductProfile(product, files), plan.profile || {}), settings),
+  const gptDesignSpecPlan = isGptProductDesignPlan(plan) || isGptDesignSpecSettings(settings);
+  if (!gptDesignSpecPlan) {
+    plan.profile = gateSmallLampSpecEvidence(enhanceSmallLampProfileFromHints(
+      applyLargeLampProfileFromHints(
+        applySelectedLampCategory(mergeProfileProduct(inferProductProfile(product, files), plan.profile || {}), settings),
+        layout,
+        product,
+        settings
+      ),
       layout,
       product,
       settings
-    ),
-    layout,
-    product,
-    settings
-  ), product, layout);
-  const localProductFallbackPlan = isProductWorkspaceSettings(settings) && /^local-product/.test(String(plan.analysis?.source || plan.promptDispatch?.source || ""));
+    ), product, layout);
+  }
+  const localProductFallbackPlan = !gptDesignSpecPlan && isProductWorkspaceSettings(settings) && /^local-product/.test(String(plan.analysis?.source || plan.promptDispatch?.source || ""));
   if (localProductFallbackPlan && isSmallLampProfile(plan.profile, settings) && !/small-lamp-detail-strategy/.test(String(plan.analysis?.source || plan.promptDispatch?.warning || ""))) {
     const rewritten = applySmallLampDetailStrategy({
       shots: plan.shots || [],
@@ -16104,7 +16745,7 @@ app.post("/api/jobs/product-suite/stream", requireAuth, suiteUpload, async (req,
         const pending = pendingIndexes();
         if (!pending.length) break;
         round += 1;
-        const firstRoundConcurrencyCap = settings?.styleCloneMode ? concurrentJobs : 2;
+        const firstRoundConcurrencyCap = concurrentJobs;
         const roundConcurrency = round > 1 || transientBatchFailures >= 2
           ? 1
           : Math.max(1, Math.min(concurrentJobs, firstRoundConcurrencyCap, pending.length));
@@ -16369,6 +17010,12 @@ export {
   isTransientGenerationError,
   remainingGenerationApiAttempts,
   recognitionRequestPrompt,
+  gptProductPlanTargets,
+  productDesignSpecPlanRequestPrompt,
+  promptWithinCharacterLimit,
+  normalizeGptProductDynamicPrompt,
+  gptDesignSpecGenerationPrompt,
+  gptProductConsistencyBrief,
   productPlanRequestPrompt,
   productPlanTargetShots,
   normalizeProductPlanResult,
@@ -16377,6 +17024,7 @@ export {
   planHasDetailMethodologyNarrative,
   sanitizeRecognitionProfile,
   applyLargeLampProfileFromHints,
+  applySelectedLampCategory,
   enhanceSmallLampProfileFromHints,
   smallLampDetailSequenceCatalog,
   wallLampDetailSequenceCatalog,

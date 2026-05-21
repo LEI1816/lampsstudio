@@ -38,6 +38,9 @@ const {
   openAIQuality,
   textRenderModeForShot,
   recognitionRequestPrompt,
+  productDesignSpecPlanRequestPrompt,
+  gptDesignSpecGenerationPrompt,
+  gptProductConsistencyBrief,
   productPlanRequestPrompt,
   productPlanTargetShots,
   normalizeProductPlanResult,
@@ -46,6 +49,7 @@ const {
   planHasDetailMethodologyNarrative,
   sanitizeRecognitionProfile,
   applyLargeLampProfileFromHints,
+  applySelectedLampCategory,
   largeLampGenerationPromptFromPlan,
   smallLampGenerationPromptFromPlan,
   wallLampGenerationPromptFromPlan,
@@ -612,6 +616,51 @@ test("wall and small selected categories are not promoted to large by negative h
   assert.equal(small.mountFamily, "recessed-downlight");
 });
 
+test("selected lamp category presets steer recognition and gpt design planning", () => {
+  const product = {
+    lampCategory: "spotlight",
+    lampCategoryLabel: "射灯",
+    lampCategoryHint: "重点照明射灯，保留灯头、灯杯和转轴结构"
+  };
+  const settings = {
+    imageScope: "detail",
+    productPlanMode: "gpt-design-spec-v1",
+    lampCategory: "spotlight",
+    lampCategoryLabel: "射灯",
+    lampCategoryHint: "重点照明射灯，保留灯头、灯杯和转轴结构"
+  };
+  const recognized = applySelectedLampCategory({
+    productName: "灯具产品",
+    lampType: "筒灯",
+    lampSubtype: "嵌入式筒灯",
+    lampChannel: "small",
+    mountFamily: "recessed-downlight"
+  }, settings);
+  const recognitionPrompt = recognitionRequestPrompt(product, "");
+  const planningPrompt = productDesignSpecPlanRequestPrompt({
+    product,
+    counts: { main: 1, scene: 1 },
+    settings
+  });
+
+  assert.equal(recognized.lampType, "射灯");
+  assert.equal(recognized.lampSubtype, "射灯");
+  assert.equal(recognized.mountFamily, "spotlight");
+  assert.match(recognitionPrompt, /已选择灯具类目：射灯/);
+  assert.match(recognitionPrompt, /以该预设为优先类目/);
+  assert.match(planningPrompt, /前端预设灯具种类：射灯/);
+  assert.match(planningPrompt, /产品定位：用一句话说明灯具类别/);
+  assert.match(planningPrompt, /视觉基调/);
+  assert.match(planningPrompt, /组图结构/);
+  assert.match(planningPrompt, /产品一致性/);
+  assert.match(planningPrompt, /电商详情页模块海报/);
+  assert.match(planningPrompt, /销售任务/);
+  assert.match(planningPrompt, /标题方向/);
+  assert.match(planningPrompt, /画面结构/);
+  assert.match(planningPrompt, /将该嵌入式射灯\/筒灯真实嵌入石膏板天花板/);
+  assert.doesNotMatch(planningPrompt, /关键组件：列出|细节特征：记录|主体结构：描述整体外形/);
+});
+
 test("detail methodology hero and function shots keep model-direct text metadata", () => {
   const settings = { imageScope: "detail" };
   const coverShot = {
@@ -1039,9 +1088,9 @@ test("explicit surface small lamp hint overrides wall-light contamination", () =
   ].join(" ")), false);
 });
 
-test("long product detail suites use conservative Yunwu concurrency", () => {
-  assert.equal(generationConcurrency({ imageScope: "detail", workspaceStrategyVersion: 1, totalShotCount: 13 }, "云雾 API"), 2);
-  assert.equal(generationConcurrency({ imageScope: "detail", workspaceStrategyVersion: 1, totalShotCount: 4 }, "云雾 API"), 2);
+test("product detail suites use configured Yunwu concurrency", () => {
+  assert.equal(generationConcurrency({ imageScope: "detail", workspaceStrategyVersion: 1, totalShotCount: 13 }, "云雾 API"), 5);
+  assert.equal(generationConcurrency({ imageScope: "detail", workspaceStrategyVersion: 1, totalShotCount: 4 }, "云雾 API"), 5);
 });
 
 test("generic long detail fallback no longer enters small lamp channel without evidence", () => {
@@ -1721,6 +1770,76 @@ test("generic product workspace prompt locks uploaded product identity", () => {
   assert.match(prompt, /识别兜底锁/);
   assert.match(prompt, /禁止把主体换成白色嵌入筒灯、带电源线筒灯/);
   assert.match(prompt, /不得新增上传图没有的电源线、驱动盒、弹簧卡扣、散热器/);
+});
+
+test("gpt design spec image prompt uses fixed reference-first consistency brief", () => {
+  const finalPrompt = gptDesignSpecGenerationPrompt(
+    "场景图：安装在现代客厅天花，展示柔和光效。",
+    { consistencyBrief: "生图一致性简版：保持哑黑圆筒灯体、银灰深杯和外置驱动盒。" },
+    { productName: "测试灯具" }
+  );
+  const planningPrompt = productDesignSpecPlanRequestPrompt({
+    product: {},
+    counts: { main: 1, details: 1 },
+    settings: { model: "gpt-image-2", clarity: "2K 高清", ratio: "3:4 竖版" }
+  });
+
+  assert.equal(finalPrompt.includes(gptProductConsistencyBrief()), true);
+  assert.match(finalPrompt, /以参考产品图为准/);
+  assert.match(finalPrompt, /当前图片任务：场景图/);
+  assert.doesNotMatch(finalPrompt, /哑黑圆筒|银灰深杯|外置驱动盒/);
+  assert.match(planningPrompt.split("\n")[0], /整体设计规范和可直接用于生图模型的动态 Prompt/);
+  assert.doesNotMatch(planningPrompt.split("\n")[0], /生图一致性简版/);
+  assert.match(planningPrompt, /designSummaryText/);
+  assert.match(planningPrompt, /设计大纲简版/);
+  assert.match(planningPrompt, /5-7 行/);
+  assert.match(planningPrompt, /不要返回 consistencyBrief/);
+});
+
+test("gpt design spec formal layout keeps editable prompt fields while varying layout types", () => {
+  const planningPrompt = productDesignSpecPlanRequestPrompt({
+    product: {},
+    counts: { main: 1, scene: 1, detail: 1, function: 1 },
+    settings: {
+      imageScope: "detail",
+      productPlanMode: "gpt-design-spec-v1",
+      promptVariant: "layout-v2"
+    }
+  });
+
+  assert.match(planningPrompt, /Prompt版本=正式版/);
+  assert.match(planningPrompt, /正式版 Prompt 规划/);
+  assert.match(planningPrompt, /版式类型池/);
+  assert.match(planningPrompt, /全幅主视觉型/);
+  assert.match(planningPrompt, /避免连续两张使用同一版式/);
+  assert.match(planningPrompt, /销售任务、标题方向、版式类型、画面结构、视觉要求、产品要求/);
+  assert.match(planningPrompt, /产品要求：产品外观以参考图为准/);
+  assert.match(planningPrompt, /组图变化策略/);
+  assert.match(planningPrompt, /不要所有图片都写成/);
+  assert.doesNotMatch(planningPrompt, /画面结构：顶部标题区，中部主视觉，底部卖点卡\/对比条\/说明区\/参数卡之一/);
+});
+
+test("gpt design spec recessed ceiling prompts append plasterboard install requirement", () => {
+  const profile = {
+    productName: "嵌入式射灯",
+    lampType: "射灯",
+    lampSubtype: "嵌入式射灯",
+    mountFamily: "recessed-downlight"
+  };
+  const ceilingPrompt = gptDesignSpecGenerationPrompt(
+    "为该产品生成一张【精准聚光功能页】电商详情页模块海报。销售任务：证明重点照明效果。标题方向：重点照明更有层次。画面结构：顶部标题区，中部天花照明场景，底部卖点卡。视觉要求：现代家居质感。产品要求：产品外观以参考图为准。",
+    {},
+    profile
+  );
+  const detailPrompt = gptDesignSpecGenerationPrompt(
+    "为该产品生成一张【材质细节证明页】电商详情页模块海报。销售任务：展示面环质感。标题方向：金属质感真实可见。画面结构：顶部标题区，中部灯杯微距特写，底部材质说明区。视觉要求：干净细节光影。产品要求：产品外观以参考图为准。",
+    {},
+    profile
+  );
+
+  assert.match(ceilingPrompt, /将该嵌入式射灯真实嵌入石膏板天花板/);
+  assert.match(ceilingPrompt, /产品安装要求/);
+  assert.doesNotMatch(detailPrompt, /石膏板天花板/);
 });
 
 test("product workspace prompt repairs unusable large lamp type labels", () => {

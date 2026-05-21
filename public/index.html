@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;800;900&family=Noto+Sans+SC:wght@400;500;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css?v=20260511-green-buttons-v1" />
+    <link rel="stylesheet" href="/styles.css?v=20260521-auth-bridge-v1" />
   </head>
   <body>
     <template id="unicornTemplate">
@@ -26,6 +26,59 @@
     </template>
 
     <main id="authView" class="auth-view">
+      <div class="auth-particles" aria-hidden="true">
+        <span style="--x: 13%; --y: 70%; --s: 5px; --dx: 18px; --dy: -26px; --t: 9s; --d: -1s;"></span>
+        <span style="--x: 17%; --y: 58%; --s: 4px; --dx: 12px; --dy: -18px; --t: 8s; --d: -4s;"></span>
+        <span style="--x: 22%; --y: 63%; --s: 7px; --dx: 24px; --dy: -34px; --t: 11s; --d: -2s;"></span>
+        <span style="--x: 28%; --y: 52%; --s: 4px; --dx: -10px; --dy: -22px; --t: 10s; --d: -6s;"></span>
+        <span style="--x: 34%; --y: 66%; --s: 6px; --dx: 16px; --dy: -28px; --t: 12s; --d: -5s;"></span>
+        <span style="--x: 39%; --y: 47%; --s: 4px; --dx: -14px; --dy: -20px; --t: 9s; --d: -3s;"></span>
+        <span style="--x: 45%; --y: 58%; --s: 5px; --dx: 18px; --dy: -24px; --t: 10s; --d: -7s;"></span>
+        <span style="--x: 50%; --y: 42%; --s: 4px; --dx: 12px; --dy: -26px; --t: 8s; --d: -2s;"></span>
+        <span style="--x: 55%; --y: 54%; --s: 6px; --dx: -12px; --dy: -22px; --t: 11s; --d: -8s;"></span>
+        <span style="--x: 60%; --y: 36%; --s: 4px; --dx: 15px; --dy: -18px; --t: 10s; --d: -1s;"></span>
+        <span style="--x: 25%; --y: 75%; --s: 9px; --dx: 18px; --dy: -18px; --t: 13s; --d: -9s;"></span>
+        <span style="--x: 36%; --y: 73%; --s: 4px; --dx: -16px; --dy: -26px; --t: 9s; --d: -5s;"></span>
+      </div>
+      <div class="auth-bridge" aria-hidden="true"><i></i><i></i><i></i></div>
+      <section class="auth-brand-panel" aria-label="绿角兽 lamps studio 品牌介绍">
+        <div class="auth-brand-mark">
+          <span class="auth-brand-icon" aria-hidden="true">
+            <svg class="unicorn-logo" viewBox="0 0 64 64">
+              <path class="u-line" d="M14 45c5-13 14-21 27-23 5-1 9 2 10 7 1 6-2 11-8 14" />
+              <path class="u-line" d="M22 43c7 4 17 3 25-2" />
+              <path class="u-line" d="M37 22l6-15 5 15" />
+              <path class="u-line" d="M24 32c5-6 11-8 18-7" />
+              <path class="u-line" d="M33 31c0 0 3 3 8 3" />
+              <path class="u-line" d="M17 48c3 3 8 5 14 5" />
+              <circle class="u-fill" cx="43" cy="30" r="2" />
+            </svg>
+          </span>
+          <span>绿角兽 · lamps studio</span>
+        </div>
+        <div class="auth-brand-copy">
+          <p>AI 灯具商品图创作平台</p>
+          <h1>用 <em>AI</em> 点亮灵感<br />让商品光影更动人</h1>
+        </div>
+        <div class="auth-benefits" aria-label="平台能力">
+          <article>
+            <span>01</span>
+            <strong>智能生成</strong>
+            <small>一键规划商品图与详情套图</small>
+          </article>
+          <article>
+            <span>02</span>
+            <strong>多场景适配</strong>
+            <small>覆盖主图、场景、细节与功能图</small>
+          </article>
+          <article>
+            <span>03</span>
+            <strong>高效创作</strong>
+            <small>批量出图，减少反复试错</small>
+          </article>
+        </div>
+      </section>
+
       <section class="auth-card-shell">
         <div class="auth-logo">
           <svg class="unicorn-logo" viewBox="0 0 64 64" aria-hidden="true">
@@ -38,8 +91,8 @@
             <circle class="u-fill" cx="43" cy="30" r="2" />
           </svg>
         </div>
-        <h1>登录 lamps studio</h1>
-        <p id="authSubtitle">使用手机号或邮箱登录，新用户可通过验证码注册</p>
+        <h1>绿角兽 · lamps studio</h1>
+        <p id="authSubtitle">登录后开始生成灯具商品图</p>
 
         <div class="auth-tabs" role="tablist">
           <button id="loginTab" class="is-active" type="button">登录</button>
@@ -59,7 +112,7 @@
           验证码
           <div class="code-row">
             <input id="authCode" inputmode="numeric" maxlength="6" placeholder="6 位验证码" autocomplete="one-time-code" />
-            <button id="sendCodeButton" type="button">发送验证码</button>
+            <button id="sendCodeButton" type="button">获取验证码</button>
           </div>
         </label>
         <label>
@@ -67,12 +120,12 @@
           <input id="authPassword" type="password" placeholder="至少 6 位" autocomplete="current-password" />
         </label>
 
-        <button id="forgotPassword" class="forgot-button" type="button">忘记密码?</button>
+        <button id="forgotPassword" class="forgot-button" type="button">忘记密码？</button>
         <button id="authSubmit" class="black-button" type="button">登录</button>
         <p class="terms">登录即表示您同意我们的服务条款和隐私政策</p>
       </section>
-      <button class="back-link" type="button">← 返回</button>
-      <button class="help-float support-button" type="button" aria-label="联系客服">ʚɞ</button>
+      <button class="back-link" type="button">返回</button>
+      <button class="help-float support-button" type="button" aria-label="联系客服">?</button>
     </main>
 
     <main id="appView" class="app-view" hidden>
@@ -682,8 +735,8 @@
             </div>
 
             <label class="requirement-label">
-              <span id="requirementLabelText">详情图要求</span>
-              <textarea id="requirementInput" rows="6" placeholder="可留空：AI 会根据上传产品图生成主图或详情图提示词；也可输入你的画面想法，AI 会帮你优化细节。"></textarea>
+              <span id="requirementLabelText">详情图特殊要求</span>
+              <textarea id="requirementInput" rows="6" placeholder="可留空：识别模型会根据产品图生成整体设计规范和详情图 Prompt；这里仅填写用户特殊要求。"></textarea>
             </label>
 
             <div class="two-fields">
@@ -699,6 +752,13 @@
                   <option value="1:1 方图">1:1 方图</option>
                   <option value="16:9 横版">16:9 横版</option>
                 </select>
+              </label>
+              <label class="lamp-category-field">
+                灯具种类
+                <input id="lampCategoryInput" list="lampCategoryOptions" autocomplete="off" placeholder="自动识别，可手动输入" />
+                <datalist id="lampCategoryOptions"></datalist>
+                <div id="lampCategorySuggestions" class="lamp-category-suggestions" hidden></div>
+                <small id="lampCategoryHint" class="field-hint">上传后初步识别，可手动修改</small>
               </label>
             </div>
 
@@ -794,7 +854,7 @@
         <div id="generationHistoryList" class="generation-history-list"></div>
       </section>
 
-      <button class="help-float support-button" type="button" aria-label="联系客服">ʚɞ</button>
+      <button class="help-float support-button" type="button" aria-label="联系客服">?</button>
     </main>
 
     <div id="supportPanel" class="support-panel" hidden>
@@ -895,6 +955,6 @@
       </div>
     </div>
 
-    <script src="/app.js?v=20260511-history-retention-v1" type="module"></script>
+    <script src="/app.js?v=20260521-auth-bridge-v1" type="module"></script>
   </body>
 </html>

@@ -7,6 +7,38 @@ const USER_BALANCE_ERROR_MESSAGE = "余额不足，请先充值";
 const ADMIN_UPSTREAM_QUOTA_ERROR_MESSAGE = "模型/API 服务账户额度不足，请检查后台配置的服务余额或更换 API Key";
 const PRODUCT_VISIBLE_SUBJECT_LOCK = "以产品图为唯一灯具主体，保留外形、材质、颜色和安装结构，不改款、不加不存在部件。";
 const PRODUCT_VISIBLE_TEXT_LOCK = "仅使用少量清晰简体中文标注，不要英文、拼音、乱码、品牌标志、水印或价格。";
+const LAMP_CATEGORY_PRESETS = [
+  { value: "recessed-downlight", label: "嵌入式筒灯", hint: "嵌入式/暗装筒灯，小体量天花开孔安装，禁止吊灯和完整主灯比例", aliases: ["筒灯", "暗装筒灯", "开孔筒灯", "嵌入筒灯", "downlight", "recessed"] },
+  { value: "surface-downlight", label: "明装筒灯", hint: "明装/贴顶小筒灯，小体量天花表面安装，禁止吊灯和轨道灯结构", aliases: ["明装灯", "明装小灯", "贴顶筒灯", "吸顶筒灯", "surface"] },
+  { value: "spotlight", label: "射灯", hint: "重点照明射灯，保留灯头、灯杯、透镜、转轴或支架等真实结构", aliases: ["小射灯", "可调射灯", "天花射灯", "spotlight", "射"] },
+  { value: "track-spotlight", label: "轨道射灯", hint: "轨道射灯，保留轨道卡扣、灯头和可调角度结构", aliases: ["导轨射灯", "轨道灯射灯", "track spotlight", "trackspot"] },
+  { value: "magnetic-track", label: "磁吸轨道灯", hint: "磁吸轨道灯/磁吸线性灯，保留轨道、磁吸模块和真实安装比例", aliases: ["磁吸灯", "磁吸线性灯", "磁吸格栅灯", "magnetic track"] },
+  { value: "track", label: "轨道灯", hint: "轨道系统灯具，保留轨道、接驳件和灯具模块关系", aliases: ["导轨灯", "轨道条", "track light", "track"] },
+  { value: "spotlight", label: "斗胆灯", hint: "斗胆灯/格栅射灯，小体量多头重点照明结构", aliases: ["格栅射灯", "双头斗胆灯", "方形斗胆灯"] },
+  { value: "wall-washer", label: "洗墙灯", hint: "洗墙/重点投射灯，保留出光方向、长条或可调投射结构", aliases: ["洗墙射灯", "墙洗灯", "wall washer"] },
+  { value: "linear", label: "线性灯", hint: "线性灯，保留长条灯体、连续发光面和真实线性比例", aliases: ["条形灯", "长条灯", "线条灯", "linear light"] },
+  { value: "strip", label: "灯带", hint: "柔性或线性灯带，保留连续发光带和隐藏安装关系", aliases: ["led灯带", "软灯带", "灯条", "strip light"] },
+  { value: "cabinet", label: "柜灯", hint: "柜内/柜下灯，保留柜体安装语义和小体量线性出光", aliases: ["橱柜灯", "层板灯", "衣柜灯", "cabinet light"] },
+  { value: "ceiling", label: "吸顶灯", hint: "吸顶灯/贴顶主灯，完整主灯体量，保留底盘、灯罩和贴顶安装关系", aliases: ["顶灯", "主灯", "ceiling light"] },
+  { value: "chandelier", label: "吊灯", hint: "吊灯/悬吊主灯，完整主灯体量，保留吊线、吊杆、吸顶盘和灯罩结构", aliases: ["餐吊灯", " pendant", "pendant light", "chandelier"] },
+  { value: "chandelier-crystal", label: "水晶吊灯", hint: "水晶/枝形吊灯，保留吊挂结构、灯臂、水晶件和完整主灯比例", aliases: ["枝形吊灯", "水晶灯", "花灯"] },
+  { value: "wall", label: "壁灯", hint: "壁灯/墙面安装灯具，保留底座、支架、灯头和墙面安装关系", aliases: ["墙灯", "床头壁灯", "阅读壁灯", "wall light"] },
+  { value: "mirror-light", label: "镜前灯", hint: "镜前/浴室壁装灯，保留墙面或镜柜安装关系", aliases: ["镜柜灯", "浴室镜前灯", "mirror light"] },
+  { value: "table-lamp", label: "台灯", hint: "台灯，保留底座、灯杆、灯罩和桌面摆放关系", aliases: ["桌灯", "阅读台灯", "table lamp", "desk lamp"] },
+  { value: "floor-lamp", label: "落地灯", hint: "落地灯，保留落地底座、灯杆、灯罩和地面尺度关系", aliases: ["立灯", "floor lamp"] },
+  { value: "panel-light", label: "面板灯", hint: "面板灯，保留平板发光面、边框和天花安装关系", aliases: ["平板灯", "集成吊顶灯", "panel light"] },
+  { value: "grille-light", label: "格栅灯", hint: "格栅灯，保留多格出光口、防眩格栅和天花安装语义", aliases: ["格栅射灯", "格栅线性灯", "grille light"] },
+  { value: "classroom-light", label: "教室灯", hint: "教室灯，保留长条灯体、防眩结构和悬吊/吸顶安装关系", aliases: ["学校灯", "护眼教室灯"] },
+  { value: "blackboard-light", label: "黑板灯", hint: "黑板灯，保留长条灯体、偏光出光和墙面/吊装关系", aliases: ["板书灯", "黑板照明"] },
+  { value: "high-bay", label: "工矿灯", hint: "工矿灯/高棚灯，保留大功率散热、吊装和工业空间尺度", aliases: ["高棚灯", "厂房灯", "high bay"] },
+  { value: "floodlight", label: "投光灯", hint: "投光灯，保留支架、散热背板、户外投射角度和真实体量", aliases: ["泛光灯", "户外投光灯", "flood light"] },
+  { value: "garden-light", label: "庭院灯", hint: "庭院/景观灯，保留户外安装、灯杆或庭院尺度关系", aliases: ["景观灯", "园林灯", "garden light"] },
+  { value: "lawn-light", label: "草坪灯", hint: "草坪灯，保留低位户外安装和地面尺度关系", aliases: ["地插灯", "草地灯", "lawn light"] },
+  { value: "street-light", label: "路灯", hint: "路灯，保留灯杆、灯臂和道路户外安装比例", aliases: ["道路灯", "street light"] },
+  { value: "inground-light", label: "地埋灯", hint: "地埋灯，保留嵌入地面、出光口和户外地面安装关系", aliases: ["埋地灯", "地下灯", "inground light"] },
+  { value: "fan-light", label: "风扇灯", hint: "风扇灯，保留扇叶、灯体和吸顶主灯比例", aliases: ["吊扇灯", "风扇吸顶灯"] },
+  { value: "emergency-light", label: "应急灯", hint: "应急灯，保留双头/指示结构、墙面或顶面安装关系", aliases: ["消防应急灯", "安全出口灯"] }
+];
 
 function friendlyGenerationErrorMessage(value = "") {
   const text = String(value || "").trim();
@@ -32,6 +64,8 @@ const state = {
   templateReferenceFiles: [],
   similarMode: "none",
   imageScope: "detail",
+  lampCategory: { value: "auto", label: "", hint: "", source: "auto", confidence: 0 },
+  promptVariant: "layout-v2",
   config: null,
   plan: null,
   workspacePlans: {
@@ -143,6 +177,196 @@ const els = new Proxy(
 
 function normalizeToolKey(tool = state.activeTool) {
   return tool === "style" || tool === "templates" ? tool : "product";
+}
+
+function normalizeLampCategoryText(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[._\-_/\\|()[\]{}【】（）:：,，;；\s]+/g, "");
+}
+
+function lampCategoryPresetTerms(preset = {}) {
+  return [preset.label, preset.value, preset.hint, ...(preset.aliases || [])]
+    .map(normalizeLampCategoryText)
+    .filter(Boolean);
+}
+
+function findLampCategoryPreset(value = "") {
+  const query = normalizeLampCategoryText(value);
+  if (!query) return null;
+  const exact = LAMP_CATEGORY_PRESETS.find((preset) => lampCategoryPresetTerms(preset).some((term) => term === query));
+  if (exact) return exact;
+  return LAMP_CATEGORY_PRESETS.find((preset) =>
+    lampCategoryPresetTerms(preset).some((term) => term.includes(query) || query.includes(term))
+  ) || null;
+}
+
+function lampCategoryMatchesQuery(preset = {}, query = "") {
+  const normalizedQuery = normalizeLampCategoryText(query);
+  if (!normalizedQuery) return false;
+  return lampCategoryPresetTerms(preset).some((term) => term.includes(normalizedQuery) || normalizedQuery.includes(term));
+}
+
+function lampCategorySelectionFromInput(value = "") {
+  const text = String(value || "").trim();
+  if (!text) return { value: "auto", label: "", hint: "", source: "auto", confidence: 0 };
+  const preset = findLampCategoryPreset(text);
+  if (preset) {
+    return {
+      value: preset.value,
+      label: preset.label,
+      hint: preset.hint,
+      source: "manual",
+      confidence: 1
+    };
+  }
+  return {
+    value: `custom:${text}`,
+    label: text,
+    hint: `用户自定义灯具类目：${text}`,
+    source: "manual",
+    confidence: 0.85
+  };
+}
+
+function scoreLampCategoryPreset(text = "", preset = {}) {
+  const source = normalizeLampCategoryText(text);
+  if (!source) return 0;
+  let score = 0;
+  for (const term of lampCategoryPresetTerms(preset)) {
+    if (!term) continue;
+    if (source === term) score = Math.max(score, 24);
+    else if (source.includes(term)) score = Math.max(score, Math.min(22, 8 + term.length));
+    else if (term.includes(source) && source.length >= 2) score = Math.max(score, 5 + source.length);
+  }
+  return score;
+}
+
+function inferLampCategoryFromFiles(files = []) {
+  const text = Array.from(files || [])
+    .map((file) => [file.name, file.type].filter(Boolean).join(" "))
+    .join(" ");
+  const scored = LAMP_CATEGORY_PRESETS
+    .map((preset) => ({ preset, score: scoreLampCategoryPreset(text, preset) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+  const best = scored[0];
+  if (!best) return { value: "auto", label: "", hint: "", source: "auto", confidence: 0 };
+  return {
+    value: best.preset.value,
+    label: best.preset.label,
+    hint: best.preset.hint,
+    source: "auto",
+    confidence: Math.min(0.95, Math.max(0.55, best.score / 24))
+  };
+}
+
+function currentLampCategoryInputValue() {
+  return els.lampCategoryInput?.value.trim() || "";
+}
+
+function selectedLampCategoryPayload() {
+  const inputValue = currentLampCategoryInputValue();
+  const fromInput = lampCategorySelectionFromInput(inputValue);
+  const current = state.lampCategory || {};
+  const selected = inputValue ? fromInput : current;
+  const label = String(selected.label || "").trim();
+  if (!label) return { value: "auto", label: "", hint: "" };
+  return {
+    value: String(selected.value || `custom:${label}`),
+    label,
+    hint: String(selected.hint || `用户选择灯具类目：${label}`)
+  };
+}
+
+function lampCategoryHintText(selection = state.lampCategory || {}) {
+  const label = String(selection.label || "").trim();
+  if (!label) return "上传后初步识别，可手动修改";
+  if (selection.source === "manual") return `已手动选择：${label}`;
+  if (selection.source === "analysis") return `模型识别：${label}，可手动修改`;
+  return `上传初判：${label}，不准可手动修改`;
+}
+
+function setLampCategorySelection(selection = {}, { updateInput = true, clearPlan = false } = {}) {
+  const next = {
+    value: String(selection.value || "auto"),
+    label: String(selection.label || "").trim(),
+    hint: String(selection.hint || "").trim(),
+    source: String(selection.source || "auto"),
+    confidence: Number(selection.confidence || 0)
+  };
+  state.lampCategory = next;
+  if (updateInput && els.lampCategoryInput) {
+    els.lampCategoryInput.value = next.label || "";
+  }
+  if (els.lampCategoryHint) {
+    els.lampCategoryHint.textContent = lampCategoryHintText(next);
+  }
+  if (clearPlan) {
+    clearWorkspacePlan("product");
+    syncPlanAfterUserChange("灯具种类已修改，请点击分析产品重新生成图片规划。");
+  }
+}
+
+function syncLampCategoryFromFiles({ force = false } = {}) {
+  const files = workspaceFiles("product");
+  if (!files.length) {
+    setLampCategorySelection({ value: "auto", label: "", hint: "", source: "auto", confidence: 0 });
+    return;
+  }
+  if (!force && state.lampCategory?.source === "manual" && state.lampCategory?.label) return;
+  const inferred = inferLampCategoryFromFiles(files);
+  setLampCategorySelection(inferred, { updateInput: true });
+}
+
+function syncLampCategoryFromPlan(plan = {}) {
+  if (state.lampCategory?.source === "manual" && state.lampCategory?.label) return;
+  const profile = plan?.profile || plan?.product || {};
+  const label = String(profile.lampSubtype || profile.lampType || profile.lampCategoryLabel || "").trim();
+  if (!label || label === "灯具" || label === "灯具产品") return;
+  const preset = findLampCategoryPreset(label);
+  setLampCategorySelection({
+    value: preset?.value || profile.lampCategory || `custom:${label}`,
+    label: preset?.label || label,
+    hint: preset?.hint || profile.lampCategoryHint || `模型识别灯具类目：${label}`,
+    source: "analysis",
+    confidence: Number(profile.confidence || 0.8) || 0.8
+  }, { updateInput: true });
+}
+
+function renderLampCategoryOptions() {
+  if (els.lampCategoryOptions) {
+    els.lampCategoryOptions.innerHTML = LAMP_CATEGORY_PRESETS
+      .map((preset) => `<option value="${escapeHtml(preset.label)}"></option>`)
+      .join("");
+  }
+  if (els.lampCategoryHint) {
+    els.lampCategoryHint.textContent = lampCategoryHintText(state.lampCategory || {});
+  }
+}
+
+function renderLampCategorySuggestions(query = currentLampCategoryInputValue()) {
+  if (!els.lampCategorySuggestions) return;
+  const text = String(query || "").trim();
+  const matches = text
+    ? LAMP_CATEGORY_PRESETS.filter((preset) => lampCategoryMatchesQuery(preset, text)).slice(0, 6)
+    : [];
+  if (!matches.length) {
+    els.lampCategorySuggestions.hidden = true;
+    els.lampCategorySuggestions.innerHTML = "";
+    return;
+  }
+  els.lampCategorySuggestions.hidden = false;
+  els.lampCategorySuggestions.innerHTML = matches
+    .map((preset) => `<button type="button" data-lamp-category-label="${escapeHtml(preset.label)}">${escapeHtml(preset.label)}</button>`)
+    .join("");
+}
+
+function commitLampCategoryInput({ clearPlan = true } = {}) {
+  const selection = lampCategorySelectionFromInput(currentLampCategoryInputValue());
+  setLampCategorySelection(selection, { updateInput: true, clearPlan });
+  renderLampCategorySuggestions("");
 }
 
 function createWorkspaceRuntime() {
@@ -367,10 +591,10 @@ const SHOT_CATEGORY_META = {
 };
 
 const DEFAULT_MAIN_REQUIREMENT =
-  "可留空：AI 会根据上传产品图生成电商主图提示词；也可输入白底、轻场景、风格和卖点。";
+  "可留空：识别模型会根据产品图生成整体设计规范和主图 Prompt；这里仅填写用户特殊要求。";
 
 const DEFAULT_DETAIL_REQUIREMENT =
-  "可留空：AI 会根据上传产品图生成详情图组提示词；也可输入卖点、功能图、场景、风格和特殊要求。";
+  "可留空：识别模型会根据产品图生成整体设计规范和详情图 Prompt；这里仅填写用户特殊要求。";
 
 function categoryMeta(category = "") {
   return SHOT_CATEGORY_META[String(category || "").trim()] || SHOT_CATEGORY_META.default;
@@ -952,7 +1176,7 @@ function setAuthMode(mode) {
   els.registerMethods.hidden = mode !== "register";
   els.authCodeRow.hidden = mode !== "register";
   els.authSubtitle.textContent =
-    mode === "login" ? "使用手机号或邮箱登录" : "选择手机号注册或邮箱注册，验证码会发送到对应账号";
+    mode === "login" ? "登录后开始生成灯具商品图" : "选择手机号或邮箱注册，验证码将发送到对应账号";
   els.authSubmit.textContent = mode === "login" ? "登录" : "完成注册";
   els.authPassword.setAttribute("autocomplete", mode === "login" ? "current-password" : "new-password");
   if (previousMode !== mode) {
@@ -1180,7 +1404,7 @@ async function sendRegisterCode() {
       if (seconds <= 0) {
         window.clearInterval(timer);
         els.sendCodeButton.disabled = false;
-        els.sendCodeButton.textContent = "发送验证码";
+        els.sendCodeButton.textContent = "获取验证码";
       } else {
         els.sendCodeButton.textContent = `${seconds}s`;
       }
@@ -1188,7 +1412,7 @@ async function sendRegisterCode() {
     markAuthError("验证码已发送，请查收", false);
   } catch (error) {
     els.sendCodeButton.disabled = false;
-    els.sendCodeButton.textContent = "发送验证码";
+    els.sendCodeButton.textContent = "获取验证码";
     markAuthError(error.message);
   }
 }
@@ -1199,7 +1423,7 @@ function markAuthError(message, isError = true) {
   window.setTimeout(() => {
     els.authSubtitle.classList.remove("is-error-text");
     els.authSubtitle.textContent =
-      state.authMode === "login" ? "使用手机号或邮箱登录" : "选择手机号注册或邮箱注册，验证码会发送到对应账号";
+      state.authMode === "login" ? "登录后开始生成灯具商品图" : "选择手机号或邮箱注册，验证码将发送到对应账号";
   }, 2600);
 }
 
@@ -2219,6 +2443,11 @@ function selectedRatioValue(tool = state.activeTool) {
   return els.ratioSelect?.value || "3:4 竖版";
 }
 
+function selectedPromptVariant() {
+  const value = state.promptVariant || "layout-v2";
+  return value === "stable" ? "stable" : "layout-v2";
+}
+
 function styleWorkspacePrompt() {
   return els.styleRequirementInput?.value.trim() || "";
 }
@@ -2533,6 +2762,7 @@ function syncPlanAfterUserChange(message = "已修改，请点击分析产品重
 }
 
 function setImageScope(scope, { silent = false } = {}) {
+  if (!silent && blockProductParameterChangeIfLocked()) return;
   const next = scope === "main" ? "main" : "detail";
   if (state.imageScope === next) return;
   const shouldClearAutoRequirement = state.requirementAutoFilled;
@@ -2543,11 +2773,11 @@ function setImageScope(scope, { silent = false } = {}) {
     button.classList.toggle("is-active", button.dataset.imageScope === state.imageScope);
   });
   updateQuantityOptions();
-  els.requirementLabelText.textContent = state.imageScope === "main" ? "主图要求" : "详情图要求";
+  els.requirementLabelText.textContent = state.imageScope === "main" ? "主图特殊要求" : "详情图特殊要求";
   els.requirementInput.placeholder =
     state.imageScope === "main"
-      ? "可留空：AI 会根据产品图生成电商主图提示词；也可输入白底、轻场景、风格和卖点。"
-      : "可留空：AI 会根据产品图生成详情图组提示词；也可输入卖点、功能图、场景、风格和特殊要求。";
+      ? DEFAULT_MAIN_REQUIREMENT
+      : DEFAULT_DETAIL_REQUIREMENT;
   if (shouldClearAutoRequirement) {
     els.requirementInput.value = "";
   }
@@ -3885,10 +4115,22 @@ function productPromptWithShortLock(prompt = "", category = "", shot = {}) {
   return bodySentence;
 }
 
+function isGptDesignSpecPlan(plan = {}) {
+  const source = String(plan?.analysis?.source || plan?.promptDispatch?.source || "");
+  return (
+    String(plan?.designSpec?.mode || plan?.analysis?.planMode || plan?.settings?.productPlanMode || "") === "gpt-design-spec-v1" ||
+    source === "gpt-design-spec-plan"
+  );
+}
+
+function isGptDesignSpecShot(shot = {}) {
+  return String(shot?.planMode || shot?.promptRoute?.planMode || "") === "gpt-design-spec-v1" || String(shot?.promptRoute?.source || "") === "gpt-design-spec-plan";
+}
+
 function editablePromptForShot(index, shot = {}, tool = state.activeTool) {
   const planEditor = els.planList?.querySelector(`[data-shot-prompt="${index}"]`);
   const basePrompt = (planEditor?.value || shot.prompt || "").trim();
-  const prompt = normalizeToolKey(tool) === "product"
+  const prompt = normalizeToolKey(tool) === "product" && !isGptDesignSpecShot(shot)
     ? productPromptWithShortLock(basePrompt, shot.category, shot)
     : basePrompt;
   const revision = normalizeToolKey(tool) === "style" ? styleRevisionForShot(index, shot) : "";
@@ -3962,6 +4204,7 @@ function styleCloneLanguageSetting(mode = state.similarMode) {
 function getSettings(tool = state.activeTool) {
   const key = normalizeToolKey(tool);
   const template = key === "product" && state.templateApplied ? creationTemplateMeta() : null;
+  const lampCategory = key === "product" ? selectedLampCategoryPayload() : { value: "auto", label: "", hint: "" };
   const similarIntents = {
     scene: "生成相似场景图/换背景：主体来自产品图，参考图只做空间构图、镜头角度、灯光氛围和软装搭配方向，重新生成一张完整连续的同类新场景，不做拼图或分屏。",
     selling: "生成相似卖点/功能图：参考图只做信息结构、留白和产品呈现方式方向，重新生成同类卖点图。",
@@ -3976,9 +4219,10 @@ function getSettings(tool = state.activeTool) {
     speed: "turbo",
     imageScope: key === "style" || key === "templates" ? "detail" : state.imageScope,
     styleCloneMode: key === "style",
-    lampCategory: "auto",
-    lampCategoryLabel: "",
-    lampCategoryHint: "",
+    lampCategory: lampCategory.value,
+    lampCategoryLabel: lampCategory.label,
+    lampCategoryHint: lampCategory.hint,
+    promptVariant: key === "product" ? selectedPromptVariant() : "stable",
     template: template?.id || "",
     templateName: template?.name || "",
     templateTag: template?.tag || "",
@@ -3991,17 +4235,19 @@ function getSettings(tool = state.activeTool) {
     noFallbackMode: key === "style",
     styleCloneStrategy: styleCloneStrategySettings(),
     workspaceStrategyVersion: 1,
+    productPlanMode: key === "product" ? "gpt-design-spec-v1" : "",
     mode: key === "product" || key === "style" || state.config?.realOpenAIImagesEnabled ? "api" : "demo"
   };
 }
 
 function productPayload(tool = state.activeTool, plan = getWorkspacePlan(tool) || state.plan) {
   const profile = plan?.profile || {};
+  const lampCategory = normalizeToolKey(tool) === "product" ? selectedLampCategoryPayload() : { value: "auto", label: "", hint: "" };
   return {
     requirement: activeGenerationRequirement(tool),
-    lampCategory: "auto",
-    lampCategoryLabel: "",
-    lampCategoryHint: "",
+    lampCategory: lampCategory.value,
+    lampCategoryLabel: lampCategory.label,
+    lampCategoryHint: lampCategory.hint,
     productName: profile.productName || "",
     lampType: profile.lampType || "",
     lampSubtype: profile.lampSubtype || "",
@@ -4062,7 +4308,7 @@ function primaryCountEntry(counts = currentCounts()) {
 
 function singleRequirementLines(taskKey, categoryLabel) {
   const map = {
-    main: ["生成灯具电商主图", `灯具类目：${categoryLabel}。`, "严格保持产品图主体结构、材质、颜色和比例。", "背景简洁高级，突出产品轮廓和点击率。"],
+    main: ["生成灯具电商主图", `灯具类目：${categoryLabel}。`, "产品外观以参考图为准，重点规划电商主图的画面基调和点击率。", "背景简洁高级，突出产品轮廓和购买欲。"],
     selling: ["生成灯具卖点图", `灯具类目：${categoryLabel}。`, "突出核心卖点、结构优势和照明价值。", "版式干净，避免堆叠文字，不虚构产品结构。"],
     function: ["生成灯具功能图", `灯具类目：${categoryLabel}。`, "使用图文功能版式展示护眼光感、均匀透光、材质稳定或安装结构。", "中文短句清晰，不虚构品牌、认证、专利或价格。"],
     scene: ["生成灯具场景图", `灯具类目：${categoryLabel}。`, "放入一张完整连续的真实空间，展示安装关系、光线范围和氛围。", "不要拼图、四宫格、多宫格或分屏；保持空间合理，产品比例真实。"],
@@ -4094,14 +4340,14 @@ function buildRequirementFromRecognition(plan) {
     return [
       "生成灯具电商主图组",
       `灯具类目：${categoryLabel}。`,
-      "严格保持产品图主体结构、材质、颜色和比例。",
+      "产品外观以参考图为准，重点规划电商主图的画面基调、构图变化和点击率。",
       "每张主图都要有不同构图或光影方向，适合电商首图测试。"
     ].join("\n");
   }
   return [
     "生成灯具详情图组",
     `灯具类目：${categoryLabel}。`,
-    "严格保持产品图主体结构、材质、颜色和比例。",
+    "产品外观以参考图为准，重点规划电商详情页风格、画面基调和组图节奏。",
     "画面干净真实，适合电商详情页直接使用。",
     similarRequirementText()
   ].filter(Boolean).join("\n");
@@ -4195,23 +4441,106 @@ function failedRetryCreditHintText() {
   return creditHintText(credits);
 }
 
+function productParameterLockActive() {
+  const runtime = workspaceRuntime("product");
+  return Boolean(runtime.busy || runtime.generating || runtime.singleGenerating?.size);
+}
+
+function generationTaskLockReason(tool = state.activeTool, mode = "any") {
+  const runtime = workspaceRuntime(tool);
+  if (runtime.generating) {
+    return mode === "single"
+      ? "整套图片正在生成中，完成后再生成单张。"
+      : "整套图片正在生成中，请等待当前任务完成。";
+  }
+  if (runtime.singleGenerating?.size) {
+    return mode === "suite"
+      ? "已有单张图片正在生成中，完成后再生成整套。"
+      : "";
+  }
+  return "";
+}
+
+function blockGenerationTaskIfLocked(tool = state.activeTool, mode = "any") {
+  const reason = generationTaskLockReason(tool, mode);
+  if (!reason) return false;
+  refreshCost();
+  if (tool === state.activeTool) {
+    const plan = getWorkspacePlan(tool) || state.plan;
+    if (plan?.shots?.length) renderPlan(plan);
+  }
+  setWorkspaceStatus(reason, { tool, isError: true });
+  return true;
+}
+
+function productParameterLockMessage() {
+  return "当前正在分析或生成，完成后再修改产品图和参数。";
+}
+
+function setElementLocked(element, locked, title = productParameterLockMessage()) {
+  if (!element) return;
+  element.disabled = Boolean(locked);
+  element.classList?.toggle("is-control-locked", Boolean(locked));
+  if (locked) {
+    element.setAttribute("aria-disabled", "true");
+    element.setAttribute("title", title);
+  } else {
+    element.removeAttribute("aria-disabled");
+    element.removeAttribute("title");
+  }
+}
+
+function refreshProductParameterLocks() {
+  const locked = productParameterLockActive();
+  const controlCard = els.imageScopeTabs?.closest(".control-card");
+  const dropZone = document.getElementById("dropZone");
+  controlCard?.classList.toggle("is-control-locked", locked);
+  [
+    els.requirementInput,
+    els.modelSelect,
+    els.ratioSelect,
+    els.lampCategoryInput,
+    els.claritySelect,
+    els.quantitySelect,
+    document.getElementById("photoInput")
+  ].forEach((element) => setElementLocked(element, locked));
+  els.imageScopeTabs?.querySelectorAll("[data-image-scope]").forEach((button) => setElementLocked(button, locked));
+  els.previewList?.querySelectorAll(".photo-thumb > button").forEach((button) => setElementLocked(button, locked));
+  dropZone?.classList.toggle("is-control-locked", locked);
+  if (locked && els.lampCategorySuggestions) {
+    els.lampCategorySuggestions.hidden = true;
+  }
+}
+
+function blockProductParameterChangeIfLocked() {
+  if (!productParameterLockActive()) return false;
+  refreshProductParameterLocks();
+  setWorkspaceStatus(productParameterLockMessage(), { tool: "product", isError: true });
+  return true;
+}
+
 function refreshCost() {
   const estimate = estimateCredits();
   state.lastEstimate = estimate;
   const balance = Number(state.user?.balance || 0);
+  refreshProductParameterLocks();
   if (els.costText) {
     els.costText.textContent = creditHintText(estimate.credits);
   }
   if (els.analyzeButton) {
     const readyToGenerate = Boolean(state.plan?.shots?.length && !state.busy);
+    const generationTaskLocked = Boolean(generationTaskLockReason(state.activeTool, "suite"));
     els.analyzeButton.classList.toggle("is-generate-ready", readyToGenerate);
     els.analyzeButton.disabled =
       !state.files.length ||
       state.busy ||
       state.generating ||
+      generationTaskLocked ||
       (readyToGenerate && state.user?.role !== "admin" && balance < estimate.credits);
     els.analyzeButton.textContent = state.generating
       ? "生成中..."
+      : generationTaskLocked && readyToGenerate
+        ? "生成中..."
       : state.busy
         ? "分析中..."
         : readyToGenerate
@@ -4241,6 +4570,7 @@ function readFiles(files) {
   const incoming = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
   if (!incoming.length) return;
   const tool = state.activeTool === "style" ? "style" : state.activeTool === "templates" ? "templates" : "product";
+  if (tool === "product" && blockProductParameterChangeIfLocked()) return;
   const currentFiles = workspaceFiles(tool);
   const accepted = incoming.slice(0, Math.max(0, 6 - currentFiles.length));
   if (!accepted.length) {
@@ -4254,6 +4584,7 @@ function readFiles(files) {
     state.collageProductNames = [...state.collageProductNames, ...incomingNames].slice(0, startIndex + accepted.length);
   }
   setWorkspaceFiles([...currentFiles, ...accepted], tool);
+  if (tool === "product") syncLampCategoryFromFiles();
   clearWorkspacePlan(tool);
   if (tool === "templates") state.collageShot = null;
   renderPreviews();
@@ -4271,6 +4602,7 @@ function readFiles(files) {
 
 function renderPreviews() {
   const files = workspaceFiles("product");
+  const locked = productParameterLockActive();
   els.photoCounter.textContent = `${files.length}/6`;
   els.previewList.innerHTML = "";
   files.forEach((file, index) => {
@@ -4289,9 +4621,12 @@ function renderPreviews() {
     remove.type = "button";
     remove.setAttribute("aria-label", "删除图片");
     remove.textContent = "×";
+    remove.disabled = locked;
     remove.addEventListener("click", () => {
+      if (blockProductParameterChangeIfLocked()) return;
       files.splice(index, 1);
       if (state.activeTool === "product") activateWorkspaceFiles("product");
+      syncLampCategoryFromFiles({ force: !files.length });
       clearWorkspacePlan("product");
       renderPreviews();
       if (files.length) {
@@ -4319,15 +4654,17 @@ function renderPreviews() {
   const add = document.createElement("label");
   add.id = "dropZone";
   add.className = "photo-add";
+  add.classList.toggle("is-control-locked", locked);
   add.setAttribute("for", "photoInput");
   add.innerHTML = `
-    <input id="photoInput" type="file" accept="image/*" multiple />
+    <input id="photoInput" type="file" accept="image/*" multiple ${locked ? "disabled" : ""} />
     <span class="upload-symbol">+</span>
     <strong>${files.length ? "继续上传" : "点击或拖拽上传"}</strong>
     <em>多图上传时建议仅上传必要的视角或 SKU 图，图片不是越多越好</em>
   `;
   els.previewList.append(add);
   wireDropZone();
+  refreshProductParameterLocks();
   renderStyleSubjectPreview();
   renderCollageCenter();
 }
@@ -4353,6 +4690,7 @@ async function analyzeUploadedProduct({
   runtime.analysisRevision = Number(runtime.analysisRevision || 0) + 1;
   const requestRevision = runtime.analysisRevision;
   runtime.busy = true;
+  refreshCost();
   setWorkspacePlan({ analyzing: true }, tool);
   if (tool === state.activeTool) state.plan = getWorkspacePlan(tool);
   if (tool === "style" && state.activeTool === "style") renderStyleClonePage();
@@ -4361,8 +4699,8 @@ async function analyzeUploadedProduct({
     tool === "style"
       ? "1/3 正在识别产品主体、灯具类型和参考图灯位..."
       : manualRequirementSync
-        ? "AI 正在按当前要求重新生成作图大纲..."
-        : `AI 正在分析产品并规划 ${imageScopeLabel()}...`,
+        ? "AI 正在按当前特殊要求重新生成详情页视觉规划..."
+        : `AI 正在分析产品并生成 ${imageScopeLabel()} Prompt...`,
     { tool }
   );
   if (tool === state.activeTool) renderPlan({ analyzing: true });
@@ -4372,7 +4710,7 @@ async function analyzeUploadedProduct({
     setWorkspaceStatus(
       tool === "style"
         ? `1/3 正在识别 ${productImageCount} 张产品图，并并行分析参考图灯位...`
-        : `真实模型识别 ${productImageCount} 张产品图主体，并展开 ${outputShotCount} 张图片提示词...`,
+        : `识别模型正在分析 ${productImageCount} 张产品图，并生成 ${outputShotCount} 条 Prompt...`,
       { tool }
     );
   }
@@ -4398,7 +4736,8 @@ async function analyzeUploadedProduct({
     if (requestRevision !== Number(runtime.analysisRevision || 0)) return;
     setWorkspacePlan(payload, tool);
     if (tool === state.activeTool) state.plan = payload;
-    if (shouldAutofillRequirement && tool === state.activeTool) {
+    if (tool === "product") syncLampCategoryFromPlan(payload);
+    if (shouldAutofillRequirement && tool === state.activeTool && !isGptDesignSpecPlan(payload)) {
       fillRequirementFromRecognition(payload);
     }
     if (tool === state.activeTool) renderPlan(payload);
@@ -4447,10 +4786,10 @@ function renderEmptyPlan() {
     },
     designSpec: {
       title: "整体设计规范",
-      subtitle: "所有图片遵循的统一视觉标准",
+      subtitle: "电商详情页视觉规划",
       sections: [
-        { title: "AI 识别结果", lines: ["上传产品图后，系统会识别灯具类目、结构、材质、适合的视觉风格、氛围光影、色彩系统和硬性保真约束。"] },
-        { title: "图片规划", lines: ["系统会根据识别到的视觉策略与生成张数，规划主图、卖点图、功能图、场景图、细节图和实拍图。"] }
+        { title: "AI 识别结果", lines: ["上传产品图后，系统会识别灯具类目，并规划适合电商详情页的视觉基调、氛围光影、配色方向和组图节奏。"] },
+        { title: "图片规划", lines: ["系统会根据生成张数规划首张图、场景图、细节图、功能图、安装示意图、材质工艺图和实拍质感图等。"] }
       ]
     },
     shots: []
@@ -4561,7 +4900,76 @@ function renderSpecBullets(items = []) {
   return items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
+function trimDesignSummaryLine(value = "", limit = 86) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const chars = Array.from(text);
+  if (chars.length <= limit) return text;
+  return `${chars.slice(0, Math.max(1, limit - 1)).join("").replace(/[，、；：:,.]*$/, "")}。`;
+}
+
+function buildDesignSummaryFromText(text = "") {
+  const clean = String(text || "")
+    .replace(/^整体设计规范[：:]\s*/i, "")
+    .replace(/\r/g, "")
+    .trim();
+  if (!clean) return "";
+  const lines = clean.split("\n").map((line) => line.trim()).filter(Boolean);
+  const fields = [
+    ["视觉基调", "风格基调"],
+    ["组图结构", "组图节奏"],
+    ["组图变化策略", "版式变化"],
+    ["比例与空间", "比例空间"],
+    ["文案策略", "文案策略"],
+    ["产品一致性", "产品一致性"]
+  ];
+  const picked = [];
+  fields.forEach(([sourceLabel, targetLabel]) => {
+    const source = lines.find((line) => line.startsWith(`${sourceLabel}：`) || line.startsWith(`${sourceLabel}:`));
+    if (!source) return;
+    const body = source.replace(new RegExp(`^${sourceLabel}[：:]\\s*`), "");
+    picked.push(`${targetLabel}：${trimDesignSummaryLine(body)}`);
+  });
+  const fallback = lines
+    .filter((line) => !/用户特殊要求|禁止变化|严格|不得|不要返回|consistencyBrief/i.test(line))
+    .map((line) => trimDesignSummaryLine(line.replace(/^[-\d.、)\s]+/, "")))
+    .filter(Boolean);
+  const summaryLines = (picked.length >= 3 ? picked : fallback).slice(0, 6);
+  return summaryLines.length ? `设计大纲：\n${summaryLines.join("\n")}` : "";
+}
+
+function normalizeDesignSummaryText(summary = "", rawText = "") {
+  const text = String(summary || "").trim() || buildDesignSummaryFromText(rawText);
+  if (!text) return "";
+  const withPrefix = /^设计大纲[：:]/.test(text) ? text : `设计大纲：\n${text}`;
+  const lines = withPrefix.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length <= 7) return withPrefix;
+  return [lines[0], ...lines.slice(1, 7)].join("\n");
+}
+
+function renderRawDesignSpec(text = "", consistencyBrief = "", summaryText = "") {
+  const brief = String(consistencyBrief || "").trim();
+  const summary = normalizeDesignSummaryText(summaryText, text);
+  return `
+    <section class="spec-section">
+      <h4>设计大纲简版</h4>
+      <pre class="design-summary-spec">${escapeHtml(summary || text)}</pre>
+      <details class="full-design-spec-details">
+        <summary>查看完整规划</summary>
+        <pre class="raw-design-spec">${escapeHtml(text)}</pre>
+        ${brief ? `
+          <div class="consistency-brief">
+            <strong>生图一致性简版</strong>
+            <p>${escapeHtml(brief)}</p>
+          </div>
+        ` : ""}
+      </details>
+    </section>
+  `;
+}
+
 function renderOverallDesignSpec(profile = {}, options = {}) {
+  const rawDesignSpec = String(options.designSpec?.rawText || "").trim();
+  if (rawDesignSpec) return renderRawDesignSpec(rawDesignSpec, options.designSpec?.consistencyBrief || "", options.designSpec?.summaryText || "");
   const strategy = visualStrategyObject(profile);
   const settings = options.settings || {};
   const resolutionLabel = clarityMeta(settings.clarity || selectedClarityValue()).label;
@@ -4663,7 +5071,7 @@ function normalizeVisiblePlanPrompts(plan = {}) {
   if (!Array.isArray(plan.shots)) return plan;
   const allowPlannedText = planAllowsStyleText(plan);
   plan.shots = plan.shots.map((shot, index) => {
-    if (normalizeToolKey(state.activeTool) === "product") {
+    if (normalizeToolKey(state.activeTool) === "product" && !isGptDesignSpecPlan(plan) && !isGptDesignSpecShot(shot)) {
       return {
         ...shot,
         prompt: productPromptWithShortLock(shot?.prompt || "", shot?.category || "")
@@ -4708,15 +5116,15 @@ function renderPlan(plan) {
     return;
   }
   if (plan.analyzing) {
-    els.statusText.textContent = "正在分析产品并制定图片大纲...";
+    els.statusText.textContent = "正在分析产品并生成详情页视觉规划...";
     els.specTitle.textContent = "分析中...";
-    els.specSubtitle.textContent = "正在分析产品并生成可编辑的作图规划";
+    els.specSubtitle.textContent = "正在生成视觉基调、组图结构和可编辑 Prompt";
     els.planCount.textContent = "";
     els.specBody.innerHTML = `
       <div class="analysis-loading-state">
-        <strong>正在拆解产品特征和作图任务</strong>
+        <strong>正在识别产品并规划电商详情图</strong>
         <span></span>
-        <p>系统会先识别灯具类型、安装结构和卖点，再按 ${escapeHtml(imageScopeLabel())} 与张数生成独立提示词。</p>
+        <p>识别模型会按当前数量生成视觉规划、组图结构和 ${escapeHtml(imageScopeLabel())} Prompt。</p>
       </div>
     `;
     els.planList.innerHTML = "";
@@ -4725,11 +5133,13 @@ function renderPlan(plan) {
   const sourceText = analysis.source === "gemini" ? `Gemini 识别：${analysis.model}` : analysis.warning || "模型识别状态";
   const dispatch = plan.promptDispatch || analysis.promptDispatch || {};
   const dispatchText =
-    dispatch.source === "gemini-dispatch"
-      ? " · Gemini 已完成单张提示词调度"
-      : dispatch.source === "apiyi-dispatch"
-        ? " · API易已完成单张提示词调度"
-        : " · 已完成单张任务调度";
+    dispatch.source === "gpt-design-spec-plan"
+      ? " · 已生成详情页视觉规划和 Prompt"
+      : dispatch.source === "gemini-dispatch"
+        ? " · Gemini 已完成单张提示词调度"
+        : dispatch.source === "apiyi-dispatch"
+          ? " · API易已完成单张提示词调度"
+          : " · 已完成单张任务调度";
   const modelText = plan.model?.label ? ` · 出图模型：${plan.model.label}` : "";
   const visualSummary = compactProfileVisualStrategy(profile);
   const recognizedText = visualSummary?.style
@@ -4737,17 +5147,17 @@ function renderPlan(plan) {
     : `${profile.style || "待识别"} / ${profile.material || "待识别"} / ${profile.function || "待识别"}`;
   els.statusText.textContent = `已识别：${recognizedText} · ${sourceText}${dispatchText}${modelText}`;
   els.specTitle.textContent = "整体设计规范";
-  els.specSubtitle.textContent = "所有图片遵循的统一视觉标准";
+  els.specSubtitle.textContent = "用于展示详情页风格规划；生图只使用一致性简版和单张 Prompt";
   els.planCount.textContent = generatedCount
     ? `已生成 ${generatedCount}/${shots.length} 张，按分类预览结果`
-    : `共 ${shots.length} 张图片，已按作图类别分发独立提示词`;
+    : `共 ${shots.length} 张图片，已生成可编辑 Prompt`;
 
   if (isSmallLampDetailSequencePlan(shots)) {
     els.planCount.textContent = generatedCount
       ? `已生成 ${generatedCount}/${shots.length} 张，按详情页顺序预览`
       : `共 ${shots.length} 张图片，按详情页顺序规划`;
   }
-  els.specBody.innerHTML = renderOverallDesignSpec(profile, { settings: plan.settings || {} });
+  els.specBody.innerHTML = renderOverallDesignSpec(profile, { settings: plan.settings || {}, designSpec: plan.designSpec || {} });
   els.planList.innerHTML = renderGroupedPlanItems(shots);
   wirePlanToggles();
 }
@@ -4777,12 +5187,17 @@ function renderShotActions(shot, index) {
       </div>
     `;
   }
+  const generationLockReason = generationTaskLockReason(state.activeTool, "single");
+  const generationButtonAttrs = generationLockReason
+    ? ` disabled title="${escapeHtml(generationLockReason)}"`
+    : "";
+  const creditOrLockHint = generationLockReason || singleImageCreditHintText();
   const regenerateText = shot.imageUrl || shot.status === "failed" ? "重新生成" : "生成这一张";
   return `
     <div class="plan-result-actions">
       <span class="result-action-stack">
-        <small class="credit-hint is-compact">${escapeHtml(singleImageCreditHintText())}</small>
-        <button data-regenerate-shot="${index}" type="button">${regenerateText}</button>
+        <small class="credit-hint is-compact">${escapeHtml(creditOrLockHint)}</small>
+        <button data-regenerate-shot="${index}" type="button"${generationButtonAttrs}>${regenerateText}</button>
       </span>
       ${shot.imageUrl ? `<button data-save-shot="${index}" type="button">保存文件</button>` : ""}
       <span class="saved-path-text">${escapeHtml(shot.savedPath || "")}</span>
@@ -4803,7 +5218,7 @@ function renderBatchTools() {
     els.styleBatchSaveButton.textContent = state.batchSaving ? "保存中..." : stats.generated ? `批量保存 ${stats.generated} 张` : "批量保存";
   }
   if (els.styleRetryFailedButton) {
-    els.styleRetryFailedButton.disabled = !stats.failed || state.busy || state.generating;
+    els.styleRetryFailedButton.disabled = !stats.failed || state.busy || state.generating || Boolean(state.singleGenerating?.size);
     els.styleRetryFailedButton.textContent = stats.failed ? `重新生成失败项 ${stats.failed} 张` : "重新生成失败项";
   }
   if (els.styleRetryCostText) {
@@ -4833,7 +5248,7 @@ function renderPlanItem(shot, index) {
       <button class="plan-toggle" type="button" aria-expanded="false" aria-label="展开完整提示词">↕</button>
       <div class="plan-prompt" hidden>
         <label>
-          <span>可修改这张图的画面提示词（固定约束已隐藏）</span>
+          <span>可修改这张图的画面 Prompt</span>
           <textarea data-shot-prompt="${index}" rows="6">${escapeHtml(shot.prompt || "")}</textarea>
         </label>
       </div>
@@ -5355,7 +5770,25 @@ async function imageBlobFromUrl(imageUrl) {
   const response = await fetch(imageUrl);
   if (!response.ok) throw new Error(`读取图片失败：HTTP ${response.status}`);
   const blob = await response.blob();
+  if (!blob.size) throw new Error("读取图片失败：图片内容为空");
   return { blob, extension: extensionFromMimeType(blob.type) };
+}
+
+async function writeImageBlobToFileHandle(fileHandle, blob) {
+  if (!fileHandle) throw new Error("没有可写入的文件句柄");
+  if (!blob?.size) throw new Error("保存失败：图片内容为空");
+  const buffer = await blob.arrayBuffer();
+  if (!buffer.byteLength) throw new Error("保存失败：图片内容为空");
+  const writable = await fileHandle.createWritable();
+  try {
+    await writable.write(new Uint8Array(buffer));
+  } finally {
+    await writable.close();
+  }
+  if (typeof fileHandle.getFile === "function") {
+    const savedFile = await fileHandle.getFile();
+    if (!savedFile?.size) throw new Error("保存失败：写出的图片文件为空，请重新保存。");
+  }
 }
 
 function canUseBrowserSaveFilePicker() {
@@ -5442,9 +5875,7 @@ async function saveImageWithBrowserFilePicker({ imageUrl, title, category, works
   };
   const fileHandle = await window.showSaveFilePicker(pickerOptions);
   const { blob } = await imageBlobFromUrl(imageUrl);
-  const writable = await fileHandle.createWritable();
-  await writable.write(blob);
-  await writable.close();
+  await writeImageBlobToFileHandle(fileHandle, blob);
   return { filePath: `已保存：${fileHandle.name || filename}`, displayPath: fileHandle.name || filename };
 }
 
@@ -5469,9 +5900,7 @@ async function saveImageToDirectoryHandle({ directoryHandle, imageUrl, title, ca
   const { blob, extension } = await imageBlobFromUrl(imageUrl);
   const filename = generatedImageFilename({ title, category, extension });
   const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(blob);
-  await writable.close();
+  await writeImageBlobToFileHandle(fileHandle, blob);
   const filePath = `${directoryHandle.name || "Selected folder"}\\${filename}`;
   return { filePath, displayPath: filePath };
 }
@@ -5842,6 +6271,8 @@ async function saveAllGeneratedImages() {
 }
 
 async function retryFailedShots() {
+  const tool = normalizeToolKey(state.activeTool);
+  if (blockGenerationTaskIfLocked(tool, "single")) return;
   const failed = (state.plan?.shots || [])
     .map((shot, index) => ({ shot, index }))
     .filter((item) => item.shot.status === "failed");
@@ -5978,6 +6409,7 @@ async function regenerateShot(index, button, { skipConfirm = false } = {}) {
     setWorkspaceStatus("请先上传产品图。", { tool, isError: true });
     return;
   }
+  if (blockGenerationTaskIfLocked(tool, "single")) return;
   const shot = plan?.shots?.[index];
   if (!shot) return;
   if (shot.status === "generating" || runtime.singleGenerating?.has(index)) {
@@ -6000,6 +6432,9 @@ async function regenerateShot(index, button, { skipConfirm = false } = {}) {
   shot.prompt = prompt;
   shot.status = "generating";
   runtime.singleGenerating.add(index);
+  setWorkspacePlan(plan, tool);
+  refreshCost();
+  if (tool === state.activeTool) renderPlan(plan);
   const originalText = button?.textContent || "";
   if (button) {
     button.disabled = true;
@@ -6023,6 +6458,8 @@ async function regenerateShot(index, button, { skipConfirm = false } = {}) {
       referenceTarget: shot.referenceTarget || null,
       referenceAnalysis: shot.referenceAnalysis || null,
       promptRoute: shot.promptRoute || {},
+      generationPrompt: shot.generationPrompt || "",
+      designSpec: plan?.designSpec || {},
       textOverlay: shot.textOverlay || null,
       analysis: plan?.analysis || {},
       userRevisionPrompt: shot.userRevisionPrompt || "",
@@ -6057,6 +6494,7 @@ async function regenerateShot(index, button, { skipConfirm = false } = {}) {
     setWorkspaceStatus(message, { tool, isError: true });
   } finally {
     runtime.singleGenerating?.delete(index);
+    refreshCost();
     if (tool === state.activeTool) {
       renderPlan(plan);
       if (tool === "style") renderStyleClonePage();
@@ -6074,6 +6512,7 @@ async function handleGenerate({ tool = state.activeTool } = {}) {
   const files = workspaceFiles(generationTool).slice();
   const plan = getWorkspacePlan(generationTool) || state.plan;
   if (runtime.generating) return;
+  if (blockGenerationTaskIfLocked(generationTool, "suite")) return;
   if (!files.length) {
     setWorkspaceStatus("请先上传产品图。", { tool: generationTool, isError: true });
     return;
@@ -6099,6 +6538,7 @@ async function handleGenerate({ tool = state.activeTool } = {}) {
   runtime.generationJobId = `job_${Date.now()}`;
   setWorkspaceStatus(generationTool === "style" ? "3/3 正在提交风格复刻并发生成任务..." : "正在提交生成任务...", { tool: generationTool });
   refreshCost();
+  if (generationTool === state.activeTool) renderPlan(plan);
   if (generationTool === "style" && state.activeTool === "style") renderStyleClonePage();
   setWorkflow({ completed: [1, 2, 3], active: 4 }, generationTool);
   const form = new FormData();
@@ -6452,6 +6892,7 @@ function setupInteractionFeedback() {
 }
 
 function wireEvents() {
+  renderLampCategoryOptions();
   if (els.closeBanner && els.promoBanner) {
     els.closeBanner.addEventListener("click", () => {
       els.promoBanner.hidden = true;
@@ -6741,7 +7182,10 @@ function wireEvents() {
   els.styleBatchSaveButton?.addEventListener("click", () => void saveAllGeneratedImages());
   els.styleRetryFailedButton?.addEventListener("click", () => void retryFailedShots());
   els.imageScopeTabs?.querySelectorAll("[data-image-scope]").forEach((button) => {
-    button.addEventListener("click", () => setImageScope(button.dataset.imageScope));
+    button.addEventListener("click", () => {
+      if (blockProductParameterChangeIfLocked()) return;
+      setImageScope(button.dataset.imageScope);
+    });
   });
   document.querySelectorAll("[data-similar-mode]").forEach((button) => {
     button.addEventListener("click", () => applySimilarMode(button.dataset.similarMode));
@@ -6796,12 +7240,14 @@ function wireEvents() {
     els.requirementInput,
     els.modelSelect,
     els.ratioSelect,
+    els.lampCategoryInput,
     els.claritySelect,
     els.quantitySelect
   ]
     .filter(Boolean)
     .forEach((el) => {
       el.addEventListener("change", () => {
+      if (blockProductParameterChangeIfLocked()) return;
       const isRequirement = el === els.requirementInput;
       if (el === els.modelSelect) {
         setWorkspaceModel("product", els.modelSelect.value);
@@ -6814,6 +7260,9 @@ function wireEvents() {
         state.requirementAutoFilled = false;
         setLampTemplateButtonApplied(false);
       }
+      if (el === els.lampCategoryInput) {
+        commitLampCategoryInput({ clearPlan: false });
+      }
       if (el === els.quantitySelect) {
         setLampTemplateButtonApplied(false);
       }
@@ -6822,11 +7271,48 @@ function wireEvents() {
     });
     });
   els.requirementInput.addEventListener("input", () => {
+    if (productParameterLockActive()) return;
     state.requirementAutoFilled = false;
     setLampTemplateButtonApplied(false);
     if (state.plan?.shots?.length) {
       scheduleRequirementSync("要求已修改，请点击分析产品重新生成图片规划。");
     }
+  });
+  els.lampCategoryInput?.addEventListener("input", () => {
+    if (productParameterLockActive()) return;
+    const selection = lampCategorySelectionFromInput(currentLampCategoryInputValue());
+    state.lampCategory = { ...selection, label: currentLampCategoryInputValue() || selection.label, source: "manual" };
+    if (els.lampCategoryHint) {
+      const match = findLampCategoryPreset(currentLampCategoryInputValue());
+      els.lampCategoryHint.textContent = match ? `匹配：${match.label}，回车或选择后生效` : "自定义灯具种类，分析时会作为预设";
+    }
+    renderLampCategorySuggestions();
+  });
+  els.lampCategoryInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (blockProductParameterChangeIfLocked()) return;
+    commitLampCategoryInput();
+  });
+  els.lampCategoryInput?.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      if (els.lampCategorySuggestions) els.lampCategorySuggestions.hidden = true;
+    }, 140);
+  });
+  els.lampCategorySuggestions?.addEventListener("click", (event) => {
+    if (blockProductParameterChangeIfLocked()) return;
+    const button = event.target.closest("[data-lamp-category-label]");
+    if (!button) return;
+    const preset = LAMP_CATEGORY_PRESETS.find((item) => item.label === button.dataset.lampCategoryLabel);
+    if (!preset) return;
+    setLampCategorySelection({
+      value: preset.value,
+      label: preset.label,
+      hint: preset.hint,
+      source: "manual",
+      confidence: 1
+    }, { updateInput: true, clearPlan: true });
+    renderLampCategorySuggestions("");
   });
   els.generateButton.addEventListener("click", handleGenerate);
   wireDropZone();
